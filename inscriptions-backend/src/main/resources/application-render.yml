@@ -1,0 +1,23 @@
+spring:
+  config:
+    activate:
+      on-profile: render
+
+  datasource:
+    url: ${postgresql://postgres.jzkxuoeelfsqandtmrre:C4st3L-C4p03!r@@aws-0-eu-west-3.pooler.supabase.com:5432/postgres}
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+
+server:
+  port: ${PORT:8080}
+
+logging:
+  level:
+    com.inscription: INFO
