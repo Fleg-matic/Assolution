@@ -42,13 +42,13 @@ jobs:
                   key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
 
             - name: 🔧 Run Backend Tests
-              working-directory: ./inscriptions/inscription-backend
+              working-directory: ./inscriptions/inscriptions-backend
               run: |
                   mvn clean test
                   mvn jacoco:report
 
             - name: 📊 SonarQube Analysis
-              working-directory: ./inscriptions/inscription-backend
+              working-directory: ./inscriptions/inscriptions-backend
               env:
                   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
                   SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
@@ -71,20 +71,20 @@ jobs:
               with:
                   node-version: "22"
                   cache: "npm"
-                  cache-dependency-path: ./inscriptions/inscription-frontend/package-lock.json
+                  cache-dependency-path: ./inscriptions/inscriptions-frontend/package-lock.json
 
             - name: 📦 Install Frontend Dependencies
-              working-directory: ./inscriptions/inscription-frontend
+              working-directory: ./inscriptions/inscriptions-frontend
               run: npm ci
 
             - name: 🔧 Run Frontend Tests
-              working-directory: ./inscriptions/inscription-frontend
+              working-directory: ./inscriptions/inscriptions-frontend
               run: |
                   npm run test:ci
                   npm run lint
 
             - name: 🏗️ Build Frontend
-              working-directory: ./inscriptions/inscription-frontend
+              working-directory: ./inscriptions/inscriptions-frontend
               run: npm run build
 
     e2e-tests:

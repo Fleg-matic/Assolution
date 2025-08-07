@@ -40,7 +40,7 @@ jobs:
               with:
                   node-version: "22"
                   cache: "npm"
-                  cache-dependency-path: ./inscriptions/inscription-frontend/package-lock.json
+                  cache-dependency-path: ./inscriptions/inscriptions-frontend/package-lock.json
 
             - name: 📦 Cache Maven dependencies
               uses: actions/cache@v4
@@ -49,14 +49,14 @@ jobs:
                   key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
 
             - name: 🔧 Backend Tests & Build
-              working-directory: ./inscriptions/inscription-backend
+              working-directory: ./inscriptions/inscriptions-backend
               run: |
                   mvn clean test verify
                   mvn jacoco:report
                   mvn package -DskipTests
 
             - name: 📦 Frontend Tests & Build
-              working-directory: ./inscriptions/inscription-frontend
+              working-directory: ./inscriptions/inscriptions-frontend
               run: |
                   npm ci
                   npm run test:ci
@@ -64,7 +64,7 @@ jobs:
                   npm run build:prod
 
             - name: 📊 SonarQube Analysis
-              working-directory: ./inscriptions/inscription-backend
+              working-directory: ./inscriptions/inscriptions-backend
               env:
                   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
                   SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
