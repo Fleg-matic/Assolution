@@ -1,35 +1,128 @@
 version: '3.8'
 
 services:
+  # PostgreSQL Database
   postgres:
-    image: postgres:15
+    image: postgres:17
+    container_name: assolution-postgres-dev
+    restart: unless-stopped
     environment:
-      POSTGRES_DB: inscriptions_db
-      POSTGRES_USER: inscriptions_user
-      POSTGRES_PASSWORD: inscriptions_pass
-    ports:
-      - "5432:5432"
+      POSTGRES_DB: ${DB_NAME:-assolution_dev}
+      POSTGRES_USER: ${DB_USER:-assolution_user}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./init-scripts:/docker-entrypoint-initdb.d
+      - ./backups:/backups
+    ports:
+      - "5432:5432"
+    networks:
+      - assolution-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-assolution_user} -d ${DB_NAME:-assolution_dev}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
+  # Spring Boot Backend
   backend:
-    build: ./backend
+    build:
+      context: ./inscriptions/inscription-backend
+      dockerfile: Dockerfile
+    container_name: assolution-backend-dev
+    restart: unless-stopped
+    environment:
+      SPRING_PROFILES_ACTIVE: dev
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: ${DB_NAME:-assolution_dev}
+      DB_USER: ${DB_USER:-assolution_user}
+      DB_PASSWORD: ${DB_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET}
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY}
+      EMAIL_API_KEY: ${EMAIL_API_KEY}
+    depends_on:
+      postgres:
+        condition: service_healthy
     ports:
       - "8080:8080"
+    networks:
+      - assolution-network
+    volumes:
+      - ./logs:/app/logs
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # Angular Frontend
+  frontend:
+    build:
+      context: ./inscriptions/inscription-frontend
+      dockerfile: Dockerfile
+    container_name: assolution-frontend-dev
+    restart: unless-stopped
     environment:
-      - SPRING_PROFILES_ACTIVE=dev
-      - DB_HOST=postgres
-      - DB_USERNAME=inscriptions_user
-      - DB_PASSWORD=inscriptions_pass
+      BACKEND_URL: ${BACKEND_URL:-http://localhost:8080}
+      ENVIRONMENT: development
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      - "4200:4200"
+    networks:
+      - assolution-network
+    volumes:
+      - ./inscriptions/inscription-frontend/src:/app/src
+      - ./inscriptions/inscription-frontend/angular.json:/app/angular.json
+      - /app/node_modules
+
+  # Nginx Reverse Proxy
+  nginx:
+    image: nginx:1.25-alpine
+    container_name: assolution-nginx-dev
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    networks:
+      - assolution-network
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+      - ./logs/nginx:/var/log/nginx
+    depends_on:
+      - backend
+      - frontend
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Adminer (Database Admin - Dev only)
+  adminer:
+    image: adminer:4.8.1
+    container_name: assolution-adminer-dev
+    restart: unless-stopped
+    ports:
+      - "8081:8080"
+    networks:
+      - assolution-network
+    environment:
+      ADMINER_DEFAULT_SERVER: postgres
     depends_on:
       - postgres
 
-  frontend:
-    build: ./frontend
-    ports:
-      - "4200:80"
-    depends_on:
-      - backend
+networks:
+  assolution-network:
+    driver: bridge
+    name: assolution-dev-network
 
 volumes:
   postgres_data:
+    name: assolution-postgres-dev-data

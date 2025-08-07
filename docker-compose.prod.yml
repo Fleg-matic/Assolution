@@ -1,89 +1,213 @@
 version: '3.8'
 
 services:
+  # PostgreSQL Database - Production
   postgres:
-    image: postgres:15
+    image: postgres:17
+    container_name: assolution-postgres-prod
+    restart: always
     environment:
-      POSTGRES_DB: ${DB_NAME:-inscriptions_db}
-      POSTGRES_USER: ${DB_USERNAME}
+      POSTGRES_DB: ${DB_NAME:-assolution_prod}
+      POSTGRES_USER: ${DB_USER:-assolution_user}
       POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=C"
     volumes:
-      - postgres_data:/var/lib/postgresql/data
-      - ./backup:/backup
+      - postgres_prod_data:/var/lib/postgresql/data
+      - ./init-scripts:/docker-entrypoint-initdb.d:ro
+      - ./backups:/backups
     networks:
-      - app-network
-    restart: unless-stopped
-    # Ne pas exposer le port 5432 en production pour la sécurité
+      - assolution-prod-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-assolution_user} -d ${DB_NAME:-assolution_prod}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: '0.5'
 
+  # Spring Boot Backend - Production
   backend:
-    image: ghcr.io/votre-username/moteur-inscriptions-backend:latest
+    build:
+      context: ./inscriptions/inscription-backend
+      dockerfile: Dockerfile.prod
+    container_name: assolution-backend-prod
+    restart: always
     environment:
-      - SPRING_PROFILES_ACTIVE=prod
-      - DB_HOST=postgres
-      - DB_USERNAME=${DB_USERNAME}
-      - DB_PASSWORD=${DB_PASSWORD}
-      - JWT_SECRET=${JWT_SECRET}
-      - STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY}
-      - STRIPE_WEBHOOK_SECRET=${STRIPE_WEBHOOK_SECRET}
-      - SMTP_HOST=${SMTP_HOST}
-      - SMTP_USERNAME=${SMTP_USERNAME}
-      - SMTP_PASSWORD=${SMTP_PASSWORD}
+      SPRING_PROFILES_ACTIVE: prod
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: ${DB_NAME:-assolution_prod}
+      DB_USER: ${DB_USER:-assolution_user}
+      DB_PASSWORD: ${DB_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET}
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY}
+      EMAIL_API_KEY: ${EMAIL_API_KEY}
+      JAVA_OPTS: "-Xmx512m -Xms256m -XX:+UseG1GC"
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
     networks:
-      - app-network
-    restart: unless-stopped
-    # Ne pas exposer directement le port backend
+      - assolution-prod-network
+    volumes:
+      - ./logs:/app/logs
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 90s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    deploy:
+      resources:
+        limits:
+          memory: 768M
+          cpus: '1.0'
 
+  # Angular Frontend - Production
   frontend:
-    image: ghcr.io/votre-username/moteur-inscriptions-frontend:latest
-    depends_on:
-      - backend
+    build:
+      context: ./inscriptions/inscription-frontend
+      dockerfile: Dockerfile.prod
+    container_name: assolution-frontend-prod
+    restart: always
     networks:
-      - app-network
-    restart: unless-stopped
-    # Ne pas exposer directement le port frontend
+      - assolution-prod-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "5m"
+        max-file: "3"
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+          cpus: '0.2'
 
-  # Reverse proxy Nginx pour gérer HTTPS et routing
+  # Nginx Reverse Proxy - Production
   nginx:
-    image: nginx:alpine
+    image: nginx:1.25-alpine
+    container_name: assolution-nginx-prod
+    restart: always
     ports:
       - "80:80"
       - "443:443"
+    networks:
+      - assolution-prod-network
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
       - ./nginx/ssl:/etc/nginx/ssl:ro
-      - ./nginx/logs:/var/log/nginx
+      - ./logs/nginx:/var/log/nginx
     depends_on:
-      - frontend
       - backend
-    networks:
-      - app-network
-    restart: unless-stopped
+      - frontend
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "5"
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+          cpus: '0.2'
 
-  # Service de sauvegarde automatique
-  backup:
-    image: postgres:15
-    environment:
-      PGPASSWORD: ${DB_PASSWORD}
-    volumes:
-      - ./backup:/backup
-      - ./scripts:/scripts:ro
+  # Monitoring & Health Checks
+  healthcheck:
+    image: curlimages/curl:8.5.0
+    container_name: assolution-healthcheck-prod
+    restart: unless-stopped
     networks:
-      - app-network
-    entrypoint: |
-      sh -c '
-      echo "0 2 * * * cd /backup && pg_dump -h postgres -U ${DB_USERNAME} ${DB_NAME:-inscriptions_db} > backup_$$(date +%Y%m%d_%H%M%S).sql && find /backup -name "*.sql" -mtime +7 -delete" | crontab -
-      crond -f
-      '
+      - assolution-prod-network
+    depends_on:
+      - nginx
+      - backend
+    command: >
+      sh -c "
+        while true; do
+          echo '[Health Check] Starting checks at $(date)'
+          
+          # Check API
+          if curl -f http://nginx/api/health; then
+            echo '[Health Check] ✅ API is healthy'
+          else
+            echo '[Health Check] ❌ API is unhealthy'
+          fi
+          
+          # Check Frontend
+          if curl -f http://nginx/; then
+            echo '[Health Check] ✅ Frontend is accessible'
+          else
+            echo '[Health Check] ❌ Frontend is not accessible'
+          fi
+          
+          # Check Database
+          if curl -f http://backend:8080/actuator/health/db; then
+            echo '[Health Check] ✅ Database is healthy'
+          else
+            echo '[Health Check] ❌ Database is unhealthy'
+          fi
+          
+          echo '[Health Check] Checks completed, sleeping for 5 minutes'
+          sleep 300
+        done"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "5m"
+        max-file: "2"
+
+  # Database Backup Service
+  backup:
+    image: postgres:17
+    container_name: assolution-backup-prod
+    restart: "no"
+    networks:
+      - assolution-prod-network
     depends_on:
       - postgres
-    restart: unless-stopped
+    volumes:
+      - ./backups:/backups
+    environment:
+      PGPASSWORD: ${DB_PASSWORD}
+    command: >
+      sh -c "
+        echo 'Starting database backup at $(date)'
+        pg_dump -h postgres -U ${DB_USER:-assolution_user} -d ${DB_NAME:-assolution_prod} > /backups/backup_$(date +%Y%m%d_%H%M%S).sql
+        echo 'Database backup completed at $(date)'
+        
+        # Keep only last 7 backups
+        cd /backups && ls -t *.sql | tail -n +8 | xargs -I {} rm -- {}
+        echo 'Old backups cleaned up'
+      "
 
 networks:
-  app-network:
+  assolution-prod-network:
     driver: bridge
+    name: assolution-prod-network
 
 volumes:
-  postgres_data:
-    driver: local
+  postgres_prod_data:
+    name: assolution-postgres-prod-data

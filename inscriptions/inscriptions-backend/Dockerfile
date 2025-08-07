@@ -1,52 +1,79 @@
 # inscriptions/inscription-backend/Dockerfile (Development)
 
+# Backend Dockerfile pour Development
 FROM eclipse-temurin:21-jdk as builder
 
-# Install Maven
-RUN apt-get update && apt-get install -y maven && rm -rf /var/lib/apt/lists/*
+# Métadonnées
+LABEL maintainer="Assolution Team"
+LABEL version="1.0"
+LABEL description="Assolution Backend - Development"
 
-# Set working directory
+# Variables d'environnement
+ENV JAVA_HOME=/usr/local/openjdk-21
+ENV SPRING_PROFILES_ACTIVE=dev
+ENV SERVER_PORT=8080
+
+# Installation des outils nécessaires
+RUN apt-get update && apt-get install -y \
+    curl \
+    wget \
+    netcat-traditional \
+    && rm -rf /var/lib/apt/lists/*
+
+# Création du répertoire de travail
 WORKDIR /app
 
-# Copy pom.xml first for dependency caching
-COPY pom.xml .
+# Copie du fichier Maven wrapper et pom.xml pour cache des dépendances
+COPY .mvn/ .mvn/
+COPY mvnw pom.xml ./
+RUN chmod +x mvnw
 
-# Download dependencies
-RUN mvn dependency:go-offline -B
+# Téléchargement des dépendances (mise en cache Docker)
+RUN ./mvnw dependency:go-offline -B
 
-# Copy source code
-COPY src ./src
+# Copie du code source
+COPY src/ ./src/
 
-# Build the application
-RUN mvn clean package -DskipTests
+# Construction de l'application
+RUN ./mvnw clean package -DskipTests
 
-# Runtime stage
-FROM eclipse-temurin:21-jre
-
-# Install curl for health checks
-RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
-
-# Create app user
+# Création d'un utilisateur non-root
 RUN groupadd -r appuser && useradd -r -g appuser appuser
-
-# Set working directory
-WORKDIR /app
-
-# Copy jar from builder stage
-COPY --from=builder /app/target/*.jar app.jar
-
-# Create logs directory
-RUN mkdir -p /app/logs && chown -R appuser:appuser /app
-
-# Switch to non-root user
+RUN chown -R appuser:appuser /app
 USER appuser
 
-# Expose port
+# Port exposé
 EXPOSE 8080
+
+# Script de démarrage avec health check
+COPY --chown=appuser:appuser <<EOF /app/start.sh
+#!/bin/bash
+set -e
+
+echo "🚀 Starting Assolution Backend (Development)"
+echo "📊 Java Version: \$(java -version 2>&1 | head -n 1)"
+echo "🔧 Active Profile: \${SPRING_PROFILES_ACTIVE}"
+echo "💾 Database Host: \${DB_HOST}"
+
+# Attendre que la base de données soit prête
+echo "⏳ Waiting for database..."
+while ! nc -z \${DB_HOST:-postgres} \${DB_PORT:-5432}; do
+  sleep 1
+done
+echo "✅ Database is ready!"
+
+# Démarrer l'application
+exec java \
+  -Djava.security.egd=file:/dev/./urandom \
+  -Dspring.profiles.active=\${SPRING_PROFILES_ACTIVE:-dev} \
+  -jar target/*.jar
+EOF
+
+RUN chmod +x /app/start.sh
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
-    CMD curl -f http://localhost:8080/actuator/health || exit 1
+  CMD curl -f http://localhost:8080/actuator/health || exit 1
 
-# Run the application
-ENTRYPOINT ["java", "-jar", "/app/app.jar"]
+# Point d'entrée
+ENTRYPOINT ["/app/start.sh"]

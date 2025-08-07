@@ -1,131 +1,240 @@
-name: Deploy to Production
+name: 🚀 Deploy Development
 
 on:
     push:
-        branches: [main]
-    workflow_dispatch: # Permet de déclencher manuellement
-
-env:
-    REGISTRY: ghcr.io
-    IMAGE_NAME_BACKEND: ${{ github.repository }}-backend
-    IMAGE_NAME_FRONTEND: ${{ github.repository }}-frontend
+        branches: [develop]
+    workflow_dispatch:
 
 jobs:
-    test:
+    test-backend:
+        name: 🧪 Test Backend
         runs-on: ubuntu-latest
-        steps:
-            - uses: actions/checkout@v3
 
-            # Tests backend
-            - name: Set up JDK 21
-              uses: actions/setup-java@v3
+        services:
+            postgres:
+                image: postgres:17
+                env:
+                    POSTGRES_DB: assolution_test
+                    POSTGRES_USER: assolution_user
+                    POSTGRES_PASSWORD: test123
+                options: >-
+                    --health-cmd pg_isready
+                    --health-interval 10s
+                    --health-timeout 5s
+                    --health-retries 5
+                ports:
+                    - 5432:5432
+
+        steps:
+            - name: 📥 Checkout code
+              uses: actions/checkout@v4
+
+            - name: ☕ Setup Java 21
+              uses: actions/setup-java@v4
               with:
                   java-version: "21"
                   distribution: "temurin"
 
-            - name: Cache Maven dependencies
-              uses: actions/cache@v3
+            - name: 📦 Cache Maven dependencies
+              uses: actions/cache@v4
               with:
                   path: ~/.m2
                   key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
 
-            - name: Run backend tests
+            - name: 🔧 Run Backend Tests
+              working-directory: ./inscriptions/inscription-backend
               run: |
-                  cd backend
                   mvn clean test
+                  mvn jacoco:report
 
-            # Tests frontend
-            - name: Setup Node.js
-              uses: actions/setup-node@v3
+            - name: 📊 SonarQube Analysis
+              working-directory: ./inscriptions/inscription-backend
+              env:
+                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+                  SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+              run: |
+                  mvn sonar:sonar \
+                    -Dsonar.projectKey=assolution-backend \
+                    -Dsonar.organization=fleg-matic \
+                    -Dsonar.host.url=https://sonarcloud.io
+
+    test-frontend:
+        name: 🎨 Test Frontend
+        runs-on: ubuntu-latest
+
+        steps:
+            - name: 📥 Checkout code
+              uses: actions/checkout@v4
+
+            - name: 🟢 Setup Node.js 22
+              uses: actions/setup-node@v4
               with:
-                  node-version: "18"
+                  node-version: "22"
                   cache: "npm"
-                  cache-dependency-path: frontend/package-lock.json
+                  cache-dependency-path: ./inscriptions/inscription-frontend/package-lock.json
 
-            - name: Install frontend dependencies
+            - name: 📦 Install Frontend Dependencies
+              working-directory: ./inscriptions/inscription-frontend
+              run: npm ci
+
+            - name: 🔧 Run Frontend Tests
+              working-directory: ./inscriptions/inscription-frontend
               run: |
-                  cd frontend
-                  npm ci
+                  npm run test:ci
+                  npm run lint
 
-            - name: Run frontend tests
-              run: |
-                  cd frontend
-                  npm run test -- --watch=false --browsers=ChromeHeadless
+            - name: 🏗️ Build Frontend
+              working-directory: ./inscriptions/inscription-frontend
+              run: npm run build
 
-    build-and-push:
-        needs: test
+    e2e-tests:
+        name: 🔬 E2E Tests
         runs-on: ubuntu-latest
-        permissions:
-            contents: read
-            packages: write
+        needs: [test-backend, test-frontend]
 
         steps:
-            - name: Checkout repository
-              uses: actions/checkout@v3
+            - name: 📥 Checkout code
+              uses: actions/checkout@v4
 
-            - name: Log in to Container Registry
-              uses: docker/login-action@v2
+            - name: 🟢 Setup Node.js 22
+              uses: actions/setup-node@v4
               with:
-                  registry: ${{ env.REGISTRY }}
-                  username: ${{ github.actor }}
-                  password: ${{ secrets.GITHUB_TOKEN }}
+                  node-version: "22"
 
-            - name: Set up JDK 21 for backend build
-              uses: actions/setup-java@v3
+            - name: 🔧 Run Cypress Tests
+              uses: cypress-io/github-action@v6
               with:
-                  java-version: "21"
-                  distribution: "temurin"
+                  working-directory: ./
+                  start: docker-compose up -d
+                  wait-on: "http://localhost:80"
+                  wait-on-timeout: 120
 
-            - name: Build backend JAR
-              run: |
-                  cd backend
-                  mvn clean package -DskipTests
-
-            - name: Extract metadata for backend
-              id: meta-backend
-              uses: docker/metadata-action@v4
-              with:
-                  images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_BACKEND }}
-                  tags: |
-                      type=ref,event=branch
-                      type=sha,prefix={{branch}}-
-                      type=raw,value=latest,enable={{is_default_branch}}
-
-            - name: Build and push backend image
-              uses: docker/build-push-action@v4
-              with:
-                  context: ./backend
-                  push: true
-                  tags: ${{ steps.meta-backend.outputs.tags }}
-                  labels: ${{ steps.meta-backend.outputs.labels }}
-
-            - name: Extract metadata for frontend
-              id: meta-frontend
-              uses: docker/metadata-action@v4
-              with:
-                  images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_FRONTEND }}
-                  tags: |
-                      type=ref,event=branch
-                      type=sha,prefix={{branch}}-
-                      type=raw,value=latest,enable={{is_default_branch}}
-
-            - name: Build and push frontend image
-              uses: docker/build-push-action@v4
-              with:
-                  context: ./frontend
-                  push: true
-                  tags: ${{ steps.meta-frontend.outputs.tags }}
-                  labels: ${{ steps.meta-frontend.outputs.labels }}
-
-    # Note: Render déploie automatiquement depuis GitHub
-    # Pas besoin de job deploy séparé pour la phase gratuite
-
-    notify:
-        needs: [test, build-and-push]
+    deploy-dev:
+        name: 🚀 Deploy to Development
         runs-on: ubuntu-latest
-        if: always()
+        needs: [test-backend, test-frontend, e2e-tests]
+        environment: development
 
         steps:
-            - name: Notify build status
+            - name: 📥 Checkout code
+              uses: actions/checkout@v4
+
+            # 🎯 STEP FINAL - Génération de TOUS les fichiers de configuration depuis les templates
+            - name: 🔧 Generate all config files from templates
               run: |
-                  echo "Build completed. Render will auto-deploy from main branch."
+                  echo "📝 Création du fichier .env..."
+                  cp config-templates/.env.template .env
+                  sed -i "s/\${DB_PASSWORD}/${{ secrets.DB_PASSWORD }}/g" .env
+                  sed -i "s/\${JWT_SECRET}/${{ secrets.JWT_SECRET }}/g" .env
+                  sed -i "s/\${STRIPE_SECRET_KEY}/${{ secrets.STRIPE_SECRET_KEY }}/g" .env
+                  sed -i "s/\${STRIPE_WEBHOOK_SECRET}/${{ secrets.STRIPE_WEBHOOK_SECRET }}/g" .env
+                  sed -i "s/\${EMAIL_HOST}/${{ secrets.EMAIL_HOST }}/g" .env
+                  sed -i "s/\${EMAIL_USER}/${{ secrets.EMAIL_USER }}/g" .env
+                  sed -i "s/\${EMAIL_PASSWORD}/${{ secrets.EMAIL_PASSWORD }}/g" .env
+
+                  echo "📝 Création du fichier application.properties..."
+                  cp config-templates/application.properties.template inscriptions/inscriptions-backend/src/main/resources/application.properties
+                  sed -i "s/\${DB_PASSWORD}/${{ secrets.DB_PASSWORD }}/g" inscriptions/inscriptions-backend/src/main/resources/application.properties
+                  sed -i "s/\${JWT_SECRET}/${{ secrets.JWT_SECRET }}/g" inscriptions/inscriptions-backend/src/main/resources/application.properties
+                  sed -i "s/\${STRIPE_SECRET_KEY}/${{ secrets.STRIPE_SECRET_KEY }}/g" inscriptions/inscriptions-backend/src/main/resources/application.properties
+                  sed -i "s/\${STRIPE_WEBHOOK_SECRET}/${{ secrets.STRIPE_WEBHOOK_SECRET }}/g" inscriptions/inscriptions-backend/src/main/resources/application.properties
+                  sed -i "s/\${EMAIL_HOST}/${{ secrets.EMAIL_HOST }}/g" inscriptions/inscriptions-backend/src/main/resources/application.properties
+                  sed -i "s/\${EMAIL_USER}/${{ secrets.EMAIL_USER }}/g" inscriptions/inscriptions-backend/src/main/resources/application.properties
+                  sed -i "s/\${EMAIL_PASSWORD}/${{ secrets.EMAIL_PASSWORD }}/g" inscriptions/inscriptions-backend/src/main/resources/application.properties
+
+                  echo "📝 Création du fichier cypress.config.js..."
+                  cp config-templates/cypress.config.js.template cypress.config.js
+                  sed -i "s/\${CYPRESS_BASE_URL}/${{ secrets.CYPRESS_BASE_URL }}/g" cypress.config.js
+                  sed -i "s/\${CYPRESS_API_URL}/${{ secrets.CYPRESS_API_URL }}/g" cypress.config.js
+                  sed -i "s/\${CYPRESS_ENVIRONMENT}/${{ secrets.CYPRESS_ENVIRONMENT }}/g" cypress.config.js
+                  sed -i "s/\${CYPRESS_TEST_USER_EMAIL}/${{ secrets.CYPRESS_TEST_USER_EMAIL }}/g" cypress.config.js
+                  sed -i "s/\${CYPRESS_TEST_USER_PASSWORD}/${{ secrets.CYPRESS_TEST_USER_PASSWORD }}/g" cypress.config.js
+                  sed -i "s/\${CYPRESS_TEST_ADMIN_EMAIL}/${{ secrets.CYPRESS_TEST_ADMIN_EMAIL }}/g" cypress.config.js
+                  sed -i "s/\${CYPRESS_TEST_ADMIN_PASSWORD}/${{ secrets.CYPRESS_TEST_ADMIN_PASSWORD }}/g" cypress.config.js
+
+                  echo "📝 Création du fichier 01-init-db.sql..."
+                  cp config-templates/01-init-db.sql.template init-scripts/01-init-db.sql
+                  sed -i "s/\${DB_PASSWORD}/${{ secrets.DB_PASSWORD }}/g" init-scripts/01-init-db.sql
+
+                  echo "📝 Création du fichier environment.prod.ts..."
+                  cp config-templates/environment.prod.ts.template inscriptions/inscriptions-frontend/src/environments/environment.prod.ts
+                  sed -i "s/\${FRONTEND_API_URL}/${{ secrets.FRONTEND_API_URL }}/g" inscriptions/inscriptions-frontend/src/environments/environment.prod.ts
+                  sed -i "s/\${FRONTEND_BASE_URL}/${{ secrets.FRONTEND_BASE_URL }}/g" inscriptions/inscriptions-frontend/src/environments/environment.prod.ts
+                  sed -i "s/\${STRIPE_PUBLISHABLE_KEY_PROD}/${{ secrets.STRIPE_PUBLISHABLE_KEY_PROD }}/g" inscriptions/inscriptions-frontend/src/environments/environment.prod.ts
+                  sed -i "s/\${ENABLE_HTTPS_REDIRECT}/${{ secrets.ENABLE_HTTPS_REDIRECT }}/g" inscriptions/inscriptions-frontend/src/environments/environment.prod.ts
+                  sed -i "s/\${SUPPORT_EMAIL}/${{ secrets.SUPPORT_EMAIL }}/g" inscriptions/inscriptions-frontend/src/environments/environment.prod.ts
+                  sed -i "s/\${SALES_EMAIL}/${{ secrets.SALES_EMAIL }}/g" inscriptions/inscriptions-frontend/src/environments/environment.prod.ts
+                  sed -i "s/\${SUPPORT_PHONE}/${{ secrets.SUPPORT_PHONE }}/g" inscriptions/inscriptions-frontend/src/environments/environment.prod.ts
+                  sed -i "s/\${COOKIE_DOMAIN}/${{ secrets.COOKIE_DOMAIN }}/g" inscriptions/inscriptions-frontend/src/environments/environment.prod.ts
+                  sed -i "s/\${COOKIE_SECURE}/${{ secrets.COOKIE_SECURE }}/g" inscriptions/inscriptions-frontend/src/environments/environment.prod.ts
+                  sed -i "s/\${GOOGLE_ANALYTICS_ID}/${{ secrets.GOOGLE_ANALYTICS_ID }}/g" inscriptions/inscriptions-frontend/src/environments/environment.prod.ts
+                  sed -i "s/\${ENABLE_ANALYTICS}/${{ secrets.ENABLE_ANALYTICS }}/g" inscriptions/inscriptions-frontend/src/environments/environment.prod.ts
+
+                  echo "✅ Tous les fichiers de configuration créés depuis les templates !"
+
+            - name: 🔑 Setup SSH
+              uses: webfactory/ssh-agent@v0.9.0
+              with:
+                  ssh-private-key: ${{ secrets.SSH_KEY }}
+
+            - name: 📂 Deploy to VM
+              run: |
+                  # Créer le dossier de déploiement
+                  ssh -o StrictHostKeyChecking=no ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} "
+                    mkdir -p /home/dbm/assolution-dev
+                    sudo systemctl is-active docker || sudo systemctl start docker
+                  "
+
+                  # Copier les fichiers
+                  scp -o StrictHostKeyChecking=no -r ./* ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:/home/dbm/assolution-dev/
+
+                  # Déployer l'application
+                  ssh -o StrictHostKeyChecking=no ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} "
+                    cd /home/dbm/assolution-dev
+                    
+                    # Arrêter les anciens containers
+                    docker-compose down --remove-orphans || true
+                    
+                    # Nettoyer les images non utilisées
+                    docker system prune -f
+                    
+                    # Construire et démarrer
+                    docker-compose up -d --build
+                    
+                    # Attendre que les services soient prêts
+                    sleep 30
+                    
+                    # Vérifier le statut
+                    docker-compose ps
+                    docker-compose logs --tail=50
+                  "
+
+            - name: 🩺 Health Check
+              run: |
+                  sleep 60
+
+                  # Test de l'API
+                  for i in {1..10}; do
+                    if curl -f http://${{ secrets.SSH_HOST }}/api/health; then
+                      echo "✅ API is healthy"
+                      break
+                    fi
+                    echo "⏳ Waiting for API... (attempt $i/10)"
+                    sleep 10
+                  done
+
+                  # Test du Frontend
+                  if curl -f http://${{ secrets.SSH_HOST }}/; then
+                    echo "✅ Frontend is accessible"
+                  else
+                    echo "❌ Frontend health check failed"
+                    exit 1
+                  fi
+
+            - name: 📢 Deployment Notification
+              if: success()
+              run: |
+                  echo "🎉 Deployment successful!"
+                  echo "🔗 Application URL: http://${{ secrets.SSH_HOST }}"
+                  echo "🔗 API URL: http://${{ secrets.SSH_HOST }}/api"
+                  echo "📊 Health Check: http://${{ secrets.SSH_HOST }}/api/health"

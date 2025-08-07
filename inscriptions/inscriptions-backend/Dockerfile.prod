@@ -1,58 +1,120 @@
 # inscriptions/inscription-backend/Dockerfile.prod (Production)
 
+# Multi-stage build pour Production
 FROM eclipse-temurin:21-jdk as builder
 
-# Install Maven
+# Installation de Maven
 RUN apt-get update && apt-get install -y maven && rm -rf /var/lib/apt/lists/*
 
-# Set working directory
-WORKDIR /app
+WORKDIR /build
 
-# Copy pom.xml first for dependency caching
+# Copie des fichiers de configuration Maven
 COPY pom.xml .
+COPY .mvn/ .mvn/
+COPY mvnw .
+RUN chmod +x mvnw
 
-# Download dependencies
-RUN mvn dependency:go-offline -B
+# Téléchargement des dépendances
+RUN ./mvnw dependency:go-offline -B
 
-# Copy source code
-COPY src ./src
+# Copie du code source et build
+COPY src/ ./src/
+RUN ./mvnw clean package -DskipTests -Dmaven.test.skip=true
 
-# Build the application with production profile
-RUN mvn clean package -Pprod -DskipTests
+# Stage de production
+FROM openjdk:21-jre-slim
 
-# Runtime stage
-FROM eclipse-temurin:21-jre
+# Métadonnées
+LABEL maintainer="Assolution Team"
+LABEL version="1.0"
+LABEL description="Assolution Backend - Production"
+LABEL stage="production"
 
-# Install curl for health checks and security updates
-RUN apt-get update && \
-    apt-get install -y curl ca-certificates && \
-    apt-get upgrade -y && \
-    rm -rf /var/lib/apt/lists/*
+# Installation des outils essentiels seulement
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl \
+    netcat-traditional \
+    tini \
+    && rm -rf /var/lib/apt/lists/* \
+    && apt-get clean
 
-# Create app user
-RUN groupadd -r appuser && useradd -r -g appuser appuser
+# Variables d'environnement optimisées pour la production
+ENV JAVA_HOME=/usr/local/openjdk-21
+ENV SPRING_PROFILES_ACTIVE=prod
+ENV SERVER_PORT=8080
+ENV JAVA_OPTS="-Xmx512m -Xms256m -XX:+UseG1GC -XX:+UseStringDeduplication -XX:+OptimizeStringConcat"
 
-# Set working directory
+# Création d'un utilisateur non-root
+RUN groupadd -r appuser && useradd -r -g appuser -d /app -s /bin/false appuser
+
+# Répertoire de travail
 WORKDIR /app
 
-# Copy jar from builder stage
-COPY --from=builder /app/target/*.jar app.jar
+# Copie du JAR depuis le builder
+COPY --from=builder --chown=appuser:appuser /build/target/*.jar app.jar
 
-# Create necessary directories
-RUN mkdir -p /app/logs /app/uploads && chown -R appuser:appuser /app
+# Création des répertoires de logs
+RUN mkdir -p /app/logs && chown -R appuser:appuser /app
 
-# Switch to non-root user
+# Script de démarrage optimisé pour la production
+COPY --chown=appuser:appuser <<EOF /app/start-prod.sh
+#!/bin/bash
+set -euo pipefail
+
+echo "🏭 Starting Assolution Backend (Production)"
+echo "📊 Java Version: \$(java -version 2>&1 | head -n 1)"
+echo "🔧 Active Profile: \${SPRING_PROFILES_ACTIVE}"
+echo "💾 Database Host: \${DB_HOST}"
+echo "🚀 JVM Options: \${JAVA_OPTS}"
+
+# Vérification des variables d'environnement critiques
+: \${DB_HOST:?DB_HOST is required}
+: \${DB_PASSWORD:?DB_PASSWORD is required}
+: \${JWT_SECRET:?JWT_SECRET is required}
+
+# Attendre que la base de données soit prête (avec timeout)
+echo "⏳ Waiting for database connection..."
+timeout=60
+counter=0
+while ! nc -z \${DB_HOST} \${DB_PORT:-5432}; do
+    if [ \$counter -ge \$timeout ]; then
+        echo "❌ Database connection timeout after \$timeout seconds"
+        exit 1
+    fi
+    counter=\$((counter + 1))
+    sleep 1
+done
+echo "✅ Database connection established!"
+
+# Pré-vérification du JAR
+if [ ! -f "/app/app.jar" ]; then
+    echo "❌ Application JAR not found!"
+    exit 1
+fi
+
+echo "🚀 Starting application..."
+
+# Démarrage avec optimisations JVM pour production
+exec java \
+    \${JAVA_OPTS} \
+    -Djava.security.egd=file:/dev/./urandom \
+    -Dspring.profiles.active=\${SPRING_PROFILES_ACTIVE} \
+    -Dlogging.file.name=/app/logs/application.log \
+    -Dlogging.pattern.file="%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n" \
+    -jar app.jar
+EOF
+
+RUN chmod +x /app/start-prod.sh
+
+# Changement vers l'utilisateur non-root
 USER appuser
 
-# Expose port
+# Port exposé
 EXPOSE 8080
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=90s --retries=5 \
-    CMD curl -f http://localhost:8080/actuator/health || exit 1
+# Health check optimisé
+HEALTHCHECK --interval=30s --timeout=15s --start-period=90s --retries=3 \
+  CMD curl -f http://localhost:8080/actuator/health || exit 1
 
-# JVM options for production
-ENV JAVA_OPTS="-Xmx512m -Xms256m -XX:+UseG1GC -XX:MaxGCPauseMillis=200 -XX:+UseStringDeduplication -XX:+OptimizeStringConcat"
-
-# Run the application
-ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -jar /app/app.jar"]
+# Point d'entrée avec tini pour une gestion propre des signaux
+ENTRYPOINT ["tini", "--", "/app/start-prod.sh"]
