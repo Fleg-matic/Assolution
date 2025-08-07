@@ -177,7 +177,7 @@ jobs:
             - name: 🔧 Run Cypress Tests
               uses: cypress-io/github-action@v6
               with:
-                  working-directory: ./
+                  working-directory: ./inscriptions/inscriptions-frontend
                   install: false
                   start: docker-compose up -d
                   wait-on: "http://localhost:80"
