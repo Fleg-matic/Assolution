@@ -75,7 +75,7 @@ jobs:
 
             - name: 📦 Install Frontend Dependencies
               working-directory: ./inscriptions/inscriptions-frontend
-              run: npm ci
+              run: npm install --legacy-peer-deps
 
             - name: 🔧 Run Frontend Tests
               working-directory: ./inscriptions/inscriptions-frontend

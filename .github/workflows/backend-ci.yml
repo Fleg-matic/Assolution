@@ -4,11 +4,11 @@ name: Backend CI
 on:
     push:
         paths:
-            - "backend/**"
+            - "inscriptions-backend/**"
             - ".github/workflows/backend-ci.yml"
     pull_request:
         paths:
-            - "backend/**"
+            - "inscriptions-backend/**"
 
 jobs:
     test:
@@ -16,7 +16,7 @@ jobs:
 
         services:
             postgres:
-                image: postgres:15
+                image: postgres:17
                 env:
                     POSTGRES_PASSWORD: test
                     POSTGRES_USER: test
@@ -47,7 +47,7 @@ jobs:
 
             - name: Run tests
               run: |
-                  cd backend
+                  cd inscriptions-backend
                   mvn clean test
 
             - name: Generate test report
@@ -60,11 +60,11 @@ jobs:
 
             - name: Build application
               run: |
-                  cd backend
+                  cd inscriptions-backend
                   mvn clean package -DskipTests
 
             - name: Upload JAR
               uses: actions/upload-artifact@v3
               with:
-                  name: backend-jar
-                  path: backend/target/*.jar
+                  name: inscriptions-backend-jar
+                  path: inscriptions-backend/target/*.jar
