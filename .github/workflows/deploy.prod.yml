@@ -63,26 +63,26 @@ jobs:
                   npm run build:prod
 
             - name: 📊 SonarQube Analysis
-                          working-directory: ./inscriptions/inscriptions-backend
-                          env:
-                              GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-                              SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-                          run: |
-                              mvn sonar:sonar \
-                                -Dsonar.projectKey=assolution \
-                                -Dsonar.organization=fleg-matic \
-                                -Dsonar.host.url=https://sonarcloud.io \
-                                -Dsonar.projectName="Assolution" \
-                                -Dsonar.projectDescription="API REST Spring Boot pour la plateforme d'inscriptions" \
-                                -Dsonar.links.homepage=https://github.com/${{ github.repository }} \
-                                -Dsonar.links.ci=https://github.com/${{ github.repository }}/actions \
-                                -Dsonar.links.scm=https://github.com/${{ github.repository }} \
-                                -Dsonar.sources=src/main/java \
-                                -Dsonar.tests=src/test/java \
-                                -Dsonar.java.binaries=target/classes \
-                                -Dsonar.java.test.binaries=target/test-classes \
-                                -Dsonar.coverage.jacoco.xmlReportPaths=target/site/jacoco/jacoco.xml \
-                                -Dsonar.junit.reportPaths=target/surefire-reports
+              working-directory: ./inscriptions/inscriptions-backend
+              env:
+                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+                  SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+              run: |
+                  mvn sonar:sonar \
+                    -Dsonar.projectKey=assolution \
+                    -Dsonar.organization=fleg-matic \
+                    -Dsonar.host.url=https://sonarcloud.io \
+                    -Dsonar.projectName="Assolution" \
+                    -Dsonar.projectDescription="API REST Spring Boot pour la plateforme d'inscriptions" \
+                    -Dsonar.links.homepage=https://github.com/${{ github.repository }} \
+                    -Dsonar.links.ci=https://github.com/${{ github.repository }}/actions \
+                    -Dsonar.links.scm=https://github.com/${{ github.repository }} \
+                    -Dsonar.sources=src/main/java \
+                    -Dsonar.tests=src/test/java \
+                    -Dsonar.java.binaries=target/classes \
+                    -Dsonar.java.test.binaries=target/test-classes \
+                    -Dsonar.coverage.jacoco.xmlReportPaths=target/site/jacoco/jacoco.xml \
+                    -Dsonar.junit.reportPaths=target/surefire-reports
 
             - name: 🔬 E2E Tests
               uses: cypress-io/github-action@v6
