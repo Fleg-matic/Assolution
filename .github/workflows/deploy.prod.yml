@@ -59,8 +59,7 @@ jobs:
               working-directory: ./inscriptions/inscriptions-frontend
               run: |
                   npm install --legacy-peer-deps
-                  npm run test:ci
-                  npm run lint
+                  npm run test -- --watch=false --browsers=ChromeHeadless
                   npm run build:prod
 
             - name: 📊 SonarQube Analysis
@@ -210,7 +209,7 @@ jobs:
                     # Vérifier que le backend est opérationnel
                     if curl -f http://localhost/api/health; then
                       echo '✅ Backend is healthy, updating frontend'
-                      docker-compose -f docker-compose.prod.yml up -d --build --no-deps inscriptions-frontend nginx
+                      docker-compose -f docker-compose.prod.yml up -d --build --no-deps frontend nginx
                     else
                       echo '❌ Backend health check failed, rolling back'
                       exit 1

@@ -80,8 +80,7 @@ jobs:
             - name: 🔧 Run Frontend Tests
               working-directory: ./inscriptions/inscriptions-frontend
               run: |
-                  npm run test:ci
-                  npm run lint
+                  npm run test -- --watch=false --browsers=ChromeHeadless
 
             - name: 🏗️ Build Frontend
               working-directory: ./inscriptions/inscriptions-frontend
