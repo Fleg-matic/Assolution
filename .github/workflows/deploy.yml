@@ -28,6 +28,8 @@ jobs:
         steps:
             - name: 📥 Checkout code
               uses: actions/checkout@v4
+              with:
+                  fetch-depth: 0
 
             - name: ☕ Setup Java 21
               uses: actions/setup-java@v4
@@ -76,6 +78,8 @@ jobs:
         steps:
             - name: 📥 Checkout code
               uses: actions/checkout@v4
+              with:
+                  fetch-depth: 0
 
             - name: 🟢 Setup Node.js 22
               uses: actions/setup-node@v4
@@ -105,19 +109,81 @@ jobs:
         steps:
             - name: 📥 Checkout code
               uses: actions/checkout@v4
+              with:
+                  # Correction pour SonarQube - éviter shallow clone
+                  fetch-depth: 0
 
             - name: 🟢 Setup Node.js 22
               uses: actions/setup-node@v4
               with:
                   node-version: "22"
 
+            # Générer les configs avant de démarrer les services
+            - name: 🔧 Generate config files for E2E
+              run: |
+                  echo "📝 Création du fichier cypress.config.js..."
+                  cp config-templates/cypress.config.js.template cypress.config.js
+                  sed -i "s/\${CYPRESS_BASE_URL}/${{ secrets.CYPRESS_BASE_URL }}/g" cypress.config.js
+                  sed -i "s/\${CYPRESS_API_URL}/${{ secrets.CYPRESS_API_URL }}/g" cypress.config.js
+                  sed -i "s/\${CYPRESS_ENVIRONMENT}/${{ secrets.CYPRESS_ENVIRONMENT }}/g" cypress.config.js
+                  sed -i "s/\${CYPRESS_TEST_USER_EMAIL}/${{ secrets.CYPRESS_TEST_USER_EMAIL }}/g" cypress.config.js
+                  sed -i "s/\${CYPRESS_TEST_USER_PASSWORD}/${{ secrets.CYPRESS_TEST_USER_PASSWORD }}/g" cypress.config.js
+                  sed -i "s/\${CYPRESS_TEST_ADMIN_EMAIL}/${{ secrets.CYPRESS_TEST_ADMIN_EMAIL }}/g" cypress.config.js
+                  sed -i "s/\${CYPRESS_TEST_ADMIN_PASSWORD}/${{ secrets.CYPRESS_TEST_ADMIN_PASSWORD }}/g" cypress.config.js
+                      
+                  echo "📝 Création du fichier .env..."
+                  cp config-templates/.env.template .env
+                  sed -i "s/\${DB_PASSWORD}/${{ secrets.DB_PASSWORD }}/g" .env
+                  sed -i "s/\${JWT_SECRET}/${{ secrets.JWT_SECRET }}/g" .env
+                  sed -i "s/\${STRIPE_SECRET_KEY}/${{ secrets.STRIPE_SECRET_KEY }}/g" .env
+                  sed -i "s/\${STRIPE_WEBHOOK_SECRET}/${{ secrets.STRIPE_WEBHOOK_SECRET }}/g" .env
+                  sed -i "s/\${EMAIL_HOST}/${{ secrets.EMAIL_HOST }}/g" .env
+                  sed -i "s/\${EMAIL_USER}/${{ secrets.EMAIL_USER }}/g" .env
+                  sed -i "s/\${EMAIL_PASSWORD}/${{ secrets.EMAIL_PASSWORD }}/g" .env
+                      
+                  echo "📝 Création du fichier application.properties..."
+                  cp config-templates/application.properties.template inscriptions/inscriptions-backend/src/main/resources/application.properties
+                  sed -i "s/\${DB_PASSWORD}/${{ secrets.DB_PASSWORD }}/g" inscriptions/inscriptions-backend/src/main/resources/application.properties
+                  sed -i "s/\${JWT_SECRET}/${{ secrets.JWT_SECRET }}/g" inscriptions/inscriptions-backend/src/main/resources/application.properties
+                  sed -i "s/\${STRIPE_SECRET_KEY}/${{ secrets.STRIPE_SECRET_KEY }}/g" inscriptions/inscriptions-backend/src/main/resources/application.properties
+                  sed -i "s/\${STRIPE_WEBHOOK_SECRET}/${{ secrets.STRIPE_WEBHOOK_SECRET }}/g" inscriptions/inscriptions-backend/src/main/resources/application.properties
+                  sed -i "s/\${EMAIL_HOST}/${{ secrets.EMAIL_HOST }}/g" inscriptions/inscriptions-backend/src/main/resources/application.properties
+                  sed -i "s/\${EMAIL_USER}/${{ secrets.EMAIL_USER }}/g" inscriptions/inscriptions-backend/src/main/resources/application.properties
+                  sed -i "s/\${EMAIL_PASSWORD}/${{ secrets.EMAIL_PASSWORD }}/g" inscriptions/inscriptions-backend/src/main/resources/application.properties
+                      
+                  echo "📝 Création du fichier 01-init-db.sql..."
+                  cp config-templates/01-init-db.sql.template init-scripts/01-init-db.sql
+                  sed -i "s/\${DB_PASSWORD}/${{ secrets.DB_PASSWORD }}/g" init-scripts/01-init-db.sql
+
+            # Créer un package.json minimal à la racine pour Cypress
+            - name: 📦 Create root package.json for Cypress
+              run: |
+                  cat > package.json << 'EOF'
+                  {
+                    "name": "assolution-e2e",
+                    "version": "1.0.0",
+                    "private": true,
+                    "devDependencies": {
+                      "cypress": "^13.0.0"
+                    },
+                    "scripts": {
+                      "cy:open": "cypress open",
+                      "cy:run": "cypress run"
+                    }
+                  }
+                  EOF
+                  npm install --legacy-peer-deps
+
             - name: 🔧 Run Cypress Tests
               uses: cypress-io/github-action@v6
               with:
                   working-directory: ./
+                  install: false
                   start: docker-compose up -d
                   wait-on: "http://localhost:80"
                   wait-on-timeout: 120
+                  browser: chrome
+                  headless: true
 
     deploy-dev:
         name: 🚀 Deploy to Development
@@ -128,6 +194,8 @@ jobs:
         steps:
             - name: 📥 Checkout code
               uses: actions/checkout@v4
+              with:
+                  fetch-depth: 0
 
             # 🎯 STEP FINAL - Génération de TOUS les fichiers de configuration depuis les templates
             - name: 🔧 Generate all config files from templates
