@@ -88,13 +88,60 @@ jobs:
                     -Dsonar.coverage.jacoco.xmlReportPaths=target/site/jacoco/jacoco.xml \
                     -Dsonar.junit.reportPaths=target/surefire-reports
 
+            # Générer les configs avant de démarrer les services E2E
+            - name: 🔧 Generate config files for E2E
+              run: |
+                  echo "📝 Création du fichier cypress.config.js..."
+                  cp config-templates/cypress.config.js.template cypress.config.js
+                  sed -i "s/\${CYPRESS_BASE_URL}/${{ secrets.CYPRESS_BASE_URL }}/g" cypress.config.js
+                  sed -i "s/\${CYPRESS_API_URL}/${{ secrets.CYPRESS_API_URL }}/g" cypress.config.js
+                  sed -i "s/\${CYPRESS_ENVIRONMENT}/${{ secrets.CYPRESS_ENVIRONMENT }}/g" cypress.config.js
+                  sed -i "s/\${CYPRESS_TEST_USER_EMAIL}/${{ secrets.CYPRESS_TEST_USER_EMAIL }}/g" cypress.config.js
+                  sed -i "s/\${CYPRESS_TEST_USER_PASSWORD}/${{ secrets.CYPRESS_TEST_USER_PASSWORD }}/g" cypress.config.js
+                  sed -i "s/\${CYPRESS_TEST_ADMIN_EMAIL}/${{ secrets.CYPRESS_TEST_ADMIN_EMAIL }}/g" cypress.config.js
+                  sed -i "s/\${CYPRESS_TEST_ADMIN_PASSWORD}/${{ secrets.CYPRESS_TEST_ADMIN_PASSWORD }}/g" cypress.config.js
+
+                  echo "📝 Création du fichier .env..."
+                  cp config-templates/.env.template .env
+                  sed -i "s/\${DB_PASSWORD}/${{ secrets.DB_PASSWORD }}/g" .env
+                  sed -i "s/\${JWT_SECRET}/${{ secrets.JWT_SECRET }}/g" .env
+                  sed -i "s/\${STRIPE_SECRET_KEY}/${{ secrets.STRIPE_SECRET_KEY }}/g" .env
+                  sed -i "s/\${STRIPE_WEBHOOK_SECRET}/${{ secrets.STRIPE_WEBHOOK_SECRET }}/g" .env
+                  sed -i "s/\${EMAIL_HOST}/${{ secrets.EMAIL_HOST }}/g" .env
+                  sed -i "s/\${EMAIL_USER}/${{ secrets.EMAIL_USER }}/g" .env
+                  sed -i "s/\${EMAIL_PASSWORD}/${{ secrets.EMAIL_PASSWORD }}/g" .env
+
+                  echo "📝 Création du fichier application.properties..."
+                  cp config-templates/application.properties.template inscriptions/inscriptions-backend/src/main/resources/application.properties
+                  sed -i "s/\${DB_PASSWORD}/${{ secrets.DB_PASSWORD }}/g" inscriptions/inscriptions-backend/src/main/resources/application.properties
+                  sed -i "s/\${JWT_SECRET}/${{ secrets.JWT_SECRET }}/g" inscriptions/inscriptions-backend/src/main/resources/application.properties
+                  sed -i "s/\${STRIPE_SECRET_KEY}/${{ secrets.STRIPE_SECRET_KEY }}/g" inscriptions/inscriptions-backend/src/main/resources/application.properties
+                  sed -i "s/\${STRIPE_WEBHOOK_SECRET}/${{ secrets.STRIPE_WEBHOOK_SECRET }}/g" inscriptions/inscriptions-backend/src/main/resources/application.properties
+                  sed -i "s/\${EMAIL_HOST}/${{ secrets.EMAIL_HOST }}/g" inscriptions/inscriptions-backend/src/main/resources/application.properties
+                  sed -i "s/\${EMAIL_USER}/${{ secrets.EMAIL_USER }}/g" inscriptions/inscriptions-backend/src/main/resources/application.properties
+                  sed -i "s/\${EMAIL_PASSWORD}/${{ secrets.EMAIL_PASSWORD }}/g" inscriptions/inscriptions-backend/src/main/resources/application.properties
+
+                  echo "📝 Création du fichier 01-init-db.sql..."
+                  cp config-templates/01-init-db.sql.template init-scripts/01-init-db.sql
+                  sed -i "s/\${DB_PASSWORD}/${{ secrets.DB_PASSWORD }}/g" init-scripts/01-init-db.sql
+
             - name: 🔬 E2E Tests
-              uses: cypress-io/github-action@v6
-              with:
-                  working-directory: ./
-                  start: docker-compose -f docker-compose.prod.yml up -d
-                  wait-on: "http://localhost:80"
-                  wait-on-timeout: 180
+              run: |
+                  # Installer Cypress
+                  npm install cypress --save-dev
+                  npx cypress verify
+
+                  # Démarrer les services en arrière-plan
+                  docker-compose -f docker-compose.prod.yml up -d
+
+                  # Attendre que les services soient prêts (plus de temps pour la prod)
+                  timeout 180 bash -c 'until curl -f http://localhost:80; do sleep 5; done'
+
+                  # Lancer les tests Cypress
+                  npx cypress run --config-file ./cypress.config.js --spec "./cypress/e2e/**/*.cy.js" --browser chrome --headless
+
+                  # Nettoyer
+                  docker-compose -f docker-compose.prod.yml down
 
     security-scan:
         name: 🔒 Security Scan

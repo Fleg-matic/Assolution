@@ -119,7 +119,6 @@ jobs:
             - name: 📥 Checkout code
               uses: actions/checkout@v4
               with:
-                  # Correction pour SonarQube - éviter shallow clone
                   fetch-depth: 0
 
             - name: 🟢 Setup Node.js 22
@@ -164,37 +163,24 @@ jobs:
                   cp config-templates/01-init-db.sql.template init-scripts/01-init-db.sql
                   sed -i "s/\${DB_PASSWORD}/${{ secrets.DB_PASSWORD }}/g" init-scripts/01-init-db.sql
 
-            # Créer un package.json minimal à la racine pour Cypress
-            - name: 📦 Create root package.json for Cypress
+            - name: 📦 Install Cypress
               run: |
-                  cat > package.json << 'EOF'
-                  {
-                    "name": "assolution-e2e",
-                    "version": "1.0.0",
-                    "private": true,
-                    "devDependencies": {
-                      "cypress": "^13.0.0"
-                    },
-                    "scripts": {
-                      "cy:open": "cypress open",
-                      "cy:run": "cypress run"
-                    }
-                  }
-                  EOF
-                  npm ci
+                  npm install cypress --save-dev
+                  npx cypress verify
 
             - name: 🔧 Run Cypress Tests
-              uses: cypress-io/github-action@v6
-              with:
-                  working-directory: ./
-                  install: false
-                  start: docker-compose up -d
-                  wait-on: "http://localhost:80"
-                  wait-on-timeout: 120
-                  browser: chrome
-                  headless: true
-                  config-file: ./inscriptions/inscriptions-frontend/cypress.config.js
-                  spec-pattern: ./inscriptions/inscriptions-frontend/cypress/e2e/**/*.cy.js
+              run: |
+                  # Démarrer les services en arrière-plan
+                  docker-compose up -d
+
+                  # Attendre que les services soient prêts
+                  timeout 120 bash -c 'until curl -f http://localhost:80; do sleep 5; done'
+
+                  # Lancer les tests Cypress
+                  npx cypress run --config-file ./cypress.config.js --spec "./cypress/e2e/**/*.cy.js" --browser chrome --headless
+
+                  # Nettoyer
+                  docker-compose down
 
     deploy-dev:
         name: 🚀 Deploy to Development
