@@ -244,7 +244,7 @@ jobs:
             - name: 🔧 Run Cypress Tests
               run: |
                   # Démarrer les services en arrière-plan
-                  docker-compose up -d
+                  docker compose up -d
 
                   # Attendre que les services soient prêts
                   timeout 120 bash -c 'until curl -f http://localhost:80; do sleep 5; done'
@@ -253,7 +253,7 @@ jobs:
                   npx cypress run --config-file ./cypress.config.js --spec "./cypress/e2e/**/*.cy.js" --browser chrome --headless
 
                   # Nettoyer
-                  docker-compose down
+                  docker compose down
 
     deploy-dev:
         name: 🚀 Deploy to Development
@@ -316,20 +316,20 @@ jobs:
                     cd /home/dbm/assolution-dev
                     
                     # Arrêter les anciens containers
-                    docker-compose down --remove-orphans || true
+                    docker compose down --remove-orphans || true
                     
                     # Nettoyer les images non utilisées
                     docker system prune -f
                     
                     # Construire et démarrer
-                    docker-compose up -d --build
+                    docker compose up -d --build
                     
                     # Attendre que les services soient prêts
                     sleep 30
                     
                     # Vérifier le statut
-                    docker-compose ps
-                    docker-compose logs --tail=50
+                    docker compose ps
+                    docker compose logs --tail=50
                   "
 
             - name: 🩺 Health Check

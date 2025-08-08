@@ -206,7 +206,7 @@ jobs:
                   npx cypress verify
 
                   # Démarrer les services en arrière-plan
-                  docker-compose -f docker-compose.prod.yml up -d
+                  docker compose -f docker-compose.prod.yml up -d
 
                   # Attendre que les services soient prêts (plus de temps pour la prod)
                   timeout 180 bash -c 'until curl -f http://localhost:80; do sleep 5; done'
@@ -215,7 +215,7 @@ jobs:
                   npx cypress run --config-file ./cypress.config.js --spec "./cypress/e2e/**/*.cy.js" --browser chrome --headless
 
                   # Nettoyer
-                  docker-compose -f docker-compose.prod.yml down
+                  docker compose -f docker-compose.prod.yml down
 
     security-scan:
         name: 🔒 Security Scan
@@ -293,10 +293,10 @@ jobs:
                     cd /home/dbm/assolution-prod || exit 0
                     
                     # Créer un backup avant déploiement
-                    if docker-compose ps | grep postgres; then
+                    if docker compose ps | grep postgres; then
                       timestamp=\$(date +%Y%m%d_%H%M%S)
                       mkdir -p backups
-                      docker-compose exec -T postgres pg_dump -U assolution_user assolution_prod > backups/backup_\${timestamp}.sql
+                      docker compose exec -T postgres pg_dump -U assolution_user assolution_prod > backups/backup_\${timestamp}.sql
                       echo '💾 Database backup created: backup_\${timestamp}.sql'
                     fi
                   "
@@ -317,13 +317,13 @@ jobs:
                     cd /home/dbm/assolution-prod
                     
                     # Rolling update : démarrer les nouveaux containers
-                    docker-compose -f docker-compose.prod.yml up -d --build --no-deps backend
+                    docker compose -f docker-compose.prod.yml up -d --build --no-deps backend
                     sleep 30
                     
                     # Vérifier que le backend est opérationnel
                     if curl -f http://localhost/api/health; then
                       echo '✅ Backend is healthy, updating frontend'
-                      docker-compose -f docker-compose.prod.yml up -d --build --no-deps frontend nginx
+                      docker compose -f docker-compose.prod.yml up -d --build --no-deps frontend nginx
                     else
                       echo '❌ Backend health check failed, rolling back'
                       exit 1
@@ -333,8 +333,8 @@ jobs:
                     docker image prune -f
                     
                     # Logs
-                    docker-compose -f docker-compose.prod.yml ps
-                    docker-compose -f docker-compose.prod.yml logs --tail=20
+                    docker compose -f docker-compose.prod.yml ps
+                    docker compose -f docker-compose.prod.yml logs --tail=20
                   "
 
             - name: 🩺 Production Health Checks
@@ -386,7 +386,7 @@ jobs:
                     echo 'Deployed by: ${{ github.actor }}' >> deployment_report.txt
                     echo '' >> deployment_report.txt
                     echo '🐳 Container Status:' >> deployment_report.txt
-                    docker-compose -f docker-compose.prod.yml ps >> deployment_report.txt
+                    docker compose -f docker-compose.prod.yml ps >> deployment_report.txt
                     
                     # Garder seulement les 10 derniers backups
                     find backups/ -name '*.sql' -type f -print0 | xargs -0 ls -t | tail -n +11 | xargs -I {} rm -- {} || true
@@ -410,8 +410,8 @@ jobs:
                     cd /home/dbm/assolution-prod
                     
                     # Utiliser la dernière image qui fonctionnait
-                    docker-compose -f docker-compose.prod.yml down
-                    docker-compose -f docker-compose.prod.yml up -d
+                    docker compose -f docker-compose.prod.yml down
+                    docker compose -f docker-compose.prod.yml up -d
                     
                     echo '🔄 Rollback completed'
                   "
