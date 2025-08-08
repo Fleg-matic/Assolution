@@ -102,11 +102,11 @@
   },
   "browserslist": {
     "production": [
-      "> 1.5%",                 // Adaptez à votre région cible
+      "> 1.5%",
       "last 2 major versions",
       "not dead",
-      "Chrome >= 115",          // Version minimale explicite
-      "not samsung < 16"        // Exclure anciens appareils Samsung
+      "Chrome >= 115",
+      "not samsung < 16"
     ],
     "development": [
       "last 1 chrome version",
