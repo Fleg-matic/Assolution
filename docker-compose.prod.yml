@@ -36,7 +36,7 @@ services:
   # Spring Boot Backend - Production
   backend:
     build:
-      context: ./inscriptions/inscription-backend
+      context: ./inscriptions/inscriptions-backend
       dockerfile: Dockerfile.prod
     container_name: assolution-backend-prod
     restart: always
@@ -78,7 +78,7 @@ services:
   # Angular Frontend - Production
   frontend:
     build:
-      context: ./inscriptions/inscription-frontend
+      context: ./inscriptions/inscriptions-frontend
       dockerfile: Dockerfile.prod
     container_name: assolution-frontend-prod
     restart: always

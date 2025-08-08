@@ -28,7 +28,7 @@ services:
   # Spring Boot Backend
   backend:
     build:
-      context: ./inscriptions/inscription-backend
+      context: ./inscriptions/inscriptions-backend
       dockerfile: Dockerfile
     container_name: assolution-backend-dev
     restart: unless-stopped
@@ -61,7 +61,7 @@ services:
   # Angular Frontend
   frontend:
     build:
-      context: ./inscriptions/inscription-frontend
+      context: ./inscriptions/inscriptions-frontend
       dockerfile: Dockerfile
     container_name: assolution-frontend-dev
     restart: unless-stopped
@@ -76,8 +76,8 @@ services:
     networks:
       - assolution-network
     volumes:
-      - ./inscriptions/inscription-frontend/src:/app/src
-      - ./inscriptions/inscription-frontend/angular.json:/app/angular.json
+      - ./inscriptions/inscriptions-frontend/src:/app/src
+      - ./inscriptions/inscriptions-frontend/angular.json:/app/angular.json
       - /app/node_modules
 
   # Nginx Reverse Proxy

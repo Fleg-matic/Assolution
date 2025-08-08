@@ -1,4 +1,4 @@
-# inscriptions/inscription-backend/Dockerfile.prod (Production)
+# inscriptions/inscriptions-backend/Dockerfile.prod (Production)
 
 # Multi-stage build pour Production
 FROM eclipse-temurin:21-jdk as builder

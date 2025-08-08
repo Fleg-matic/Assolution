@@ -1,4 +1,4 @@
-# inscriptions/inscription-backend/Dockerfile (Development)
+# inscriptions/inscriptions-backend/Dockerfile (Development)
 
 # Backend Dockerfile pour Development
 FROM eclipse-temurin:21-jdk as builder
