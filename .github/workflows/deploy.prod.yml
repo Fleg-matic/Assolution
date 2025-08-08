@@ -88,152 +88,110 @@ jobs:
                     -Dsonar.coverage.jacoco.xmlReportPaths=target/site/jacoco/jacoco.xml \
                     -Dsonar.junit.reportPaths=target/surefire-reports
 
-            # Générer les configs avant de démarrer les services E2E
             - name: 🔧 Generate config files for E2E
               run: |
-                  echo "📝 Création du fichier cypress.config.js..."
-                  cp config-templates/cypress.config.js.template cypress.config.js
+                  echo "📝 Création du fichier application-prod.properties..."
+                  cat > inscriptions/inscriptions-backend/src/main/resources/application-prod.properties << 'EOF'
+                  # Server Configuration
+                  server.port=8080
+                  server.servlet.context-path=/api
 
-                  # Utiliser un délimiteur différent pour éviter les conflits avec les URLs
-                  sed -i "s|\${CYPRESS_BASE_URL}|${{ secrets.CYPRESS_BASE_URL }}|g" cypress.config.js
-                  sed -i "s|\${CYPRESS_API_URL}|${{ secrets.CYPRESS_API_URL }}|g" cypress.config.js
-                  sed -i "s|\${CYPRESS_ENVIRONMENT}|${{ secrets.CYPRESS_ENVIRONMENT }}|g" cypress.config.js
-                  sed -i "s|\${CYPRESS_TEST_USER_EMAIL}|${{ secrets.CYPRESS_TEST_USER_EMAIL }}|g" cypress.config.js
-                  sed -i "s|\${CYPRESS_TEST_USER_PASSWORD}|${{ secrets.CYPRESS_TEST_USER_PASSWORD }}|g" cypress.config.js
-                  sed -i "s|\${CYPRESS_TEST_ADMIN_EMAIL}|${{ secrets.CYPRESS_TEST_ADMIN_EMAIL }}|g" cypress.config.js
-                  sed -i "s|\${CYPRESS_TEST_ADMIN_PASSWORD}|${{ secrets.CYPRESS_TEST_ADMIN_PASSWORD }}|g" cypress.config.js
+                  # Database Configuration
+                  spring.datasource.url=jdbc:postgresql://postgres:5432/assolution_prod
+                  spring.datasource.username=assolution_user
+                  spring.datasource.password=${{ secrets.DB_PASSWORD }}
+                  spring.datasource.driver-class-name=org.postgresql.Driver
 
-                  echo "📝 Création du fichier .env..."
-                  cp config-templates/.env.template .env
-                  sed -i "s|\${DB_PASSWORD}|${{ secrets.DB_PASSWORD }}|g" .env
-                  sed -i "s|\${JWT_SECRET}|${{ secrets.JWT_SECRET }}|g" .env
-                  sed -i "s|\${STRIPE_SECRET_KEY}|${{ secrets.STRIPE_SECRET_KEY }}|g" .env
-                  sed -i "s|\${STRIPE_WEBHOOK_SECRET}|${{ secrets.STRIPE_WEBHOOK_SECRET }}|g" .env
-                  sed -i "s|\${EMAIL_HOST}|${{ secrets.EMAIL_HOST }}|g" .env
-                  sed -i "s|\${EMAIL_USER}|${{ secrets.EMAIL_USER }}|g" .env
-                  sed -i "s|\${EMAIL_PASSWORD}|${{ secrets.EMAIL_PASSWORD }}|g" .env
+                  # JPA Configuration
+                  spring.jpa.hibernate.ddl-auto=validate
+                  spring.jpa.show-sql=false
+                  spring.jpa.properties.hibernate.dialect=org.hibernate.dialect.PostgreSQLDialect
+                  spring.jpa.properties.hibernate.format_sql=false
 
-                  echo "📝 Création du fichier application.properties..."
-                  cp config-templates/application.properties.template inscriptions/inscriptions-backend/src/main/resources/application.properties
-                  sed -i "s|\${DB_PASSWORD}|${{ secrets.DB_PASSWORD }}|g" inscriptions/inscriptions-backend/src/main/resources/application.properties
-                  sed -i "s|\${JWT_SECRET}|${{ secrets.JWT_SECRET }}|g" inscriptions/inscriptions-backend/src/main/resources/application.properties
-                  sed -i "s|\${STRIPE_SECRET_KEY}|${{ secrets.STRIPE_SECRET_KEY }}|g" inscriptions/inscriptions-backend/src/main/resources/application.properties
-                  sed -i "s|\${STRIPE_WEBHOOK_SECRET}|${{ secrets.STRIPE_WEBHOOK_SECRET }}|g" inscriptions/inscriptions-backend/src/main/resources/application.properties
-                  sed -i "s|\${EMAIL_HOST}|${{ secrets.EMAIL_HOST }}|g" inscriptions/inscriptions-backend/src/main/resources/application.properties
-                  sed -i "s|\${EMAIL_USER}|${{ secrets.EMAIL_USER }}|g" inscriptions/inscriptions-backend/src/main/resources/application.properties
-                  sed -i "s|\${EMAIL_PASSWORD}|${{ secrets.EMAIL_PASSWORD }}|g" inscriptions/inscriptions-backend/src/main/resources/application.properties
+                  # JWT Configuration
+                  app.jwt.secret=${{ secrets.JWT_SECRET }}
+                  app.jwt.expiration=86400
 
-                  echo "📝 Création du fichier 01-init-db.sql..."
-                  cp config-templates/01-init-db.sql.template init-scripts/01-init-db.sql
-                  sed -i "s|\${DB_PASSWORD}|${{ secrets.DB_PASSWORD }}|g" init-scripts/01-init-db.sql
+                  # Stripe Configuration
+                  stripe.secret.key=${{ secrets.STRIPE_SECRET_KEY }}
+                  stripe.webhook.secret=${{ secrets.STRIPE_WEBHOOK_SECRET }}
 
-            - name: 🔬 E2E Tests
-              run: |
-                  # Installer Cypress
-                  npm install cypress --save-dev
-                  npx cypress verify
+                  # Email Configuration
+                  spring.mail.host=${{ secrets.EMAIL_HOST }}
+                  spring.mail.port=587
+                  spring.mail.username=${{ secrets.EMAIL_USER }}
+                  spring.mail.password=${{ secrets.EMAIL_PASSWORD }}
+                  spring.mail.properties.mail.smtp.auth=true
+                  spring.mail.properties.mail.smtp.starttls.enable=true
 
-                  # Démarrer les services en arrière-plan
-                  docker-compose -f docker-compose.prod.yml up -d
-
-                  # Attendre que les services soient prêts (plus de temps pour la prod)
-                  timeout 180 bash -c 'until curl -f http://localhost:80; do sleep 5; done'
-
-                  # Lancer les tests Cypress
-                  npx cypress run --config-file ./cypress.config.js --spec "./cypress/e2e/**/*.cy.js" --browser chrome --headless
-
-                  # Nettoyer
-                  docker-compose -f docker-compose.prod.yml down
-
-    security-scan:
-        name: 🔒 Security Scan
-        runs-on: ubuntu-latest
-        needs: [test-complete]
-
-        steps:
-            - name: 📥 Checkout code
-              uses: actions/checkout@v4
-              with:
-                  fetch-depth: 0
-
-            - name: 🔍 Run Trivy vulnerability scanner
-              uses: aquasecurity/trivy-action@master
-              with:
-                  scan-type: "fs"
-                  scan-ref: "."
-                  format: "sarif"
-                  output: "trivy-results.sarif"
-
-            - name: 📤 Upload Trivy scan results to GitHub Security tab
-              uses: github/codeql-action/upload-sarif@v3
-              if: always()
-              with:
-                  sarif_file: "trivy-results.sarif"
-
-    deploy-prod:
-        name: 🚀 Deploy to Production
-        runs-on: ubuntu-latest
-        needs: [test-complete, security-scan]
-        environment: production
-
-        steps:
-            - name: 📥 Checkout code
-              uses: actions/checkout@v4
-              with:
-                  fetch-depth: 0
-
-            # 🎯 STEP FINAL - Génération de TOUS les fichiers de configuration depuis les templates
-            - name: 🔧 Generate all config files from templates
-              run: |
-                  echo "📝 Création du fichier .env..."
-                  cp config-templates/.env.template .env
-                  sed -i "s/\${DB_PASSWORD}/${{ secrets.DB_PASSWORD }}/g" .env
-                  sed -i "s/\${JWT_SECRET}/${{ secrets.JWT_SECRET }}/g" .env
-                  sed -i "s/\${STRIPE_SECRET_KEY}/${{ secrets.STRIPE_SECRET_KEY }}/g" .env
-                  sed -i "s/\${STRIPE_WEBHOOK_SECRET}/${{ secrets.STRIPE_WEBHOOK_SECRET }}/g" .env
-                  sed -i "s/\${EMAIL_HOST}/${{ secrets.EMAIL_HOST }}/g" .env
-                  sed -i "s/\${EMAIL_USER}/${{ secrets.EMAIL_USER }}/g" .env
-                  sed -i "s/\${EMAIL_PASSWORD}/${{ secrets.EMAIL_PASSWORD }}/g" .env
-
-                  echo "📝 Création du fichier application.properties..."
-                  cp config-templates/application.properties.template inscriptions/inscriptions-backend/src/main/resources/application.properties
-                  sed -i "s/\${DB_PASSWORD}/${{ secrets.DB_PASSWORD }}/g" inscriptions/inscriptions-backend/src/main/resources/application.properties
-                  sed -i "s/\${JWT_SECRET}/${{ secrets.JWT_SECRET }}/g" inscriptions/inscriptions-backend/src/main/resources/application.properties
-                  sed -i "s/\${STRIPE_SECRET_KEY}/${{ secrets.STRIPE_SECRET_KEY }}/g" inscriptions/inscriptions-backend/src/main/resources/application.properties
-                  sed -i "s/\${STRIPE_WEBHOOK_SECRET}/${{ secrets.STRIPE_WEBHOOK_SECRET }}/g" inscriptions/inscriptions-backend/src/main/resources/application.properties
-                  sed -i "s/\${EMAIL_HOST}/${{ secrets.EMAIL_HOST }}/g" inscriptions/inscriptions-backend/src/main/resources/application.properties
-                  sed -i "s/\${EMAIL_USER}/${{ secrets.EMAIL_USER }}/g" inscriptions/inscriptions-backend/src/main/resources/application.properties
-                  sed -i "s/\${EMAIL_PASSWORD}/${{ secrets.EMAIL_PASSWORD }}/g" inscriptions/inscriptions-backend/src/main/resources/application.properties
+                  # Logging Configuration
+                  logging.level.com.assolution=WARN
+                  logging.level.org.springframework.security=WARN
+                  logging.level.org.hibernate=WARN
+                  EOF
 
                   echo "📝 Création du fichier cypress.config.js..."
-                  cp config-templates/cypress.config.js.template cypress.config.js
-                  sed -i "s/\${CYPRESS_BASE_URL}/${{ secrets.CYPRESS_BASE_URL }}/g" cypress.config.js
-                  sed -i "s/\${CYPRESS_API_URL}/${{ secrets.CYPRESS_API_URL }}/g" cypress.config.js
-                  sed -i "s/\${CYPRESS_ENVIRONMENT}/${{ secrets.CYPRESS_ENVIRONMENT }}/g" cypress.config.js
-                  sed -i "s/\${CYPRESS_TEST_USER_EMAIL}/${{ secrets.CYPRESS_TEST_USER_EMAIL }}/g" cypress.config.js
-                  sed -i "s/\${CYPRESS_TEST_USER_PASSWORD}/${{ secrets.CYPRESS_TEST_USER_PASSWORD }}/g" cypress.config.js
-                  sed -i "s/\${CYPRESS_TEST_ADMIN_EMAIL}/${{ secrets.CYPRESS_TEST_ADMIN_EMAIL }}/g" cypress.config.js
-                  sed -i "s/\${CYPRESS_TEST_ADMIN_PASSWORD}/${{ secrets.CYPRESS_TEST_ADMIN_PASSWORD }}/g" cypress.config.js
+                  cat > cypress.config.js << 'EOF'
+                  const { defineConfig } = require('cypress')
+
+                  module.exports = defineConfig({
+                    e2e: {
+                      baseUrl: '${{ secrets.CYPRESS_BASE_URL }}',
+                      apiUrl: '${{ secrets.CYPRESS_API_URL }}',
+                      env: {
+                        environment: '${{ secrets.CYPRESS_ENVIRONMENT }}',
+                        testUserEmail: '${{ secrets.CYPRESS_TEST_USER_EMAIL }}',
+                        testUserPassword: '${{ secrets.CYPRESS_TEST_USER_PASSWORD }}',
+                        testAdminEmail: '${{ secrets.CYPRESS_TEST_ADMIN_EMAIL }}',
+                        testAdminPassword: '${{ secrets.CYPRESS_TEST_ADMIN_PASSWORD }}'
+                      },
+                      setupNodeEvents(on, config) {
+                        // implement node event listeners here
+                      },
+                    },
+                  })
+                  EOF
 
                   echo "📝 Création du fichier 01-init-db.sql..."
-                  cp config-templates/01-init-db.sql.template init-scripts/01-init-db.sql
-                  sed -i "s/\${DB_PASSWORD}/${{ secrets.DB_PASSWORD }}/g" init-scripts/01-init-db.sql
+                  cat > init-scripts/01-init-db.sql << 'EOF'
+                  -- Création de la base de données et de l'utilisateur pour la production
+                  CREATE DATABASE IF NOT EXISTS assolution_prod;
+                  CREATE USER IF NOT EXISTS 'assolution_user'@'%' IDENTIFIED BY '${{ secrets.DB_PASSWORD }}';
+                  GRANT ALL PRIVILEGES ON assolution_prod.* TO 'assolution_user'@'%';
+                  FLUSH PRIVILEGES;
+
+                  -- Utilisation de la base de données
+                  USE assolution_prod;
+
+                  -- Tables de production
+                  -- Les migrations Flyway ou Liquibase se chargeront du reste
+                  EOF
 
                   echo "📝 Création du fichier environment.prod.ts..."
-                  cp config-templates/environment.prod.ts.template inscriptions/inscriptions-frontend/src/environments/environment.prod.ts
-                  sed -i "s/\${FRONTEND_API_URL}/${{ secrets.FRONTEND_API_URL }}/g" inscriptions/inscriptions-frontend/src/environments/environment.prod.ts
-                  sed -i "s/\${FRONTEND_BASE_URL}/${{ secrets.FRONTEND_BASE_URL }}/g" inscriptions/inscriptions-frontend/src/environments/environment.prod.ts
-                  sed -i "s/\${STRIPE_PUBLISHABLE_KEY_PROD}/${{ secrets.STRIPE_PUBLISHABLE_KEY_PROD }}/g" inscriptions/inscriptions-frontend/src/environments/environment.prod.ts
-                  sed -i "s/\${ENABLE_HTTPS_REDIRECT}/${{ secrets.ENABLE_HTTPS_REDIRECT }}/g" inscriptions/inscriptions-frontend/src/environments/environment.prod.ts
-                  sed -i "s/\${SUPPORT_EMAIL}/${{ secrets.SUPPORT_EMAIL }}/g" inscriptions/inscriptions-frontend/src/environments/environment.prod.ts
-                  sed -i "s/\${SALES_EMAIL}/${{ secrets.SALES_EMAIL }}/g" inscriptions/inscriptions-frontend/src/environments/environment.prod.ts
-                  sed -i "s/\${SUPPORT_PHONE}/${{ secrets.SUPPORT_PHONE }}/g" inscriptions/inscriptions-frontend/src/environments/environment.prod.ts
-                  sed -i "s/\${COOKIE_DOMAIN}/${{ secrets.COOKIE_DOMAIN }}/g" inscriptions/inscriptions-frontend/src/environments/environment.prod.ts
-                  sed -i "s/\${COOKIE_SECURE}/${{ secrets.COOKIE_SECURE }}/g" inscriptions/inscriptions-frontend/src/environments/environment.prod.ts
-                  sed -i "s/\${GOOGLE_ANALYTICS_ID}/${{ secrets.GOOGLE_ANALYTICS_ID }}/g" inscriptions/inscriptions-frontend/src/environments/environment.prod.ts
-                  sed -i "s/\${ENABLE_ANALYTICS}/${{ secrets.ENABLE_ANALYTICS }}/g" inscriptions/inscriptions-frontend/src/environments/environment.prod.ts
+                  cat > inscriptions/inscriptions-frontend/src/environments/environment.prod.ts << 'EOF'
+                  export const environment = {
+                    production: true,
+                    apiUrl: '${{ secrets.FRONTEND_API_URL }}',
+                    baseUrl: '${{ secrets.FRONTEND_BASE_URL }}',
+                    stripePublishableKey: '${{ secrets.STRIPE_PUBLISHABLE_KEY_PROD }}',
+                    enableHttpsRedirect: ${{ secrets.ENABLE_HTTPS_REDIRECT }},
+                    
+                    // Contact Information
+                    supportEmail: '${{ secrets.SUPPORT_EMAIL }}',
+                    salesEmail: '${{ secrets.SALES_EMAIL }}',
+                    supportPhone: '${{ secrets.SUPPORT_PHONE }}',
+                    
+                    // Cookie Configuration
+                    cookieDomain: '${{ secrets.COOKIE_DOMAIN }}',
+                    cookieSecure: ${{ secrets.COOKIE_SECURE }},
+                    
+                    // Analytics
+                    googleAnalyticsId: '${{ secrets.GOOGLE_ANALYTICS_ID }}',
+                    enableAnalytics: ${{ secrets.ENABLE_ANALYTICS }}
+                  };
+                  EOF
 
-                  echo "✅ Tous les fichiers de configuration créés depuis les templates !"
+                  echo "✅ Tous les fichiers de configuration créés depuis les secrets GitHub !"
 
             - name: 🔑 Setup SSH
               uses: webfactory/ssh-agent@v0.9.0
@@ -368,4 +326,201 @@ jobs:
                     
                     echo '🔄 Rollback completed'
                   "
+                  exit 1Création du fichier cypress.config.js..."
+                  cat > cypress.config.js << 'EOF'
+                  const { defineConfig } = require('cypress')
+
+                  module.exports = defineConfig({
+                    e2e: {
+                      baseUrl: '${{ secrets.CYPRESS_BASE_URL }}',
+                      apiUrl: '${{ secrets.CYPRESS_API_URL }}',
+                      env: {
+                        environment: '${{ secrets.CYPRESS_ENVIRONMENT }}',
+                        testUserEmail: '${{ secrets.CYPRESS_TEST_USER_EMAIL }}',
+                        testUserPassword: '${{ secrets.CYPRESS_TEST_USER_PASSWORD }}',
+                        testAdminEmail: '${{ secrets.CYPRESS_TEST_ADMIN_EMAIL }}',
+                        testAdminPassword: '${{ secrets.CYPRESS_TEST_ADMIN_PASSWORD }}'
+                      },
+                      setupNodeEvents(on, config) {
+                        // implement node event listeners here
+                      },
+                    },
+                  })
+                  EOF
+
+                  echo "📝 Création du fichier .env.prod..."
+                  cat > .env.prod << 'EOF'
+                  # Database Configuration
+                  DB_HOST=postgres
+                  DB_PORT=5432
+                  DB_NAME=assolution_prod
+                  DB_USER=assolution_user
+                  DB_PASSWORD=${{ secrets.DB_PASSWORD }}
+
+                  # JWT Configuration
+                  JWT_SECRET=${{ secrets.JWT_SECRET }}
+                  JWT_EXPIRATION=86400
+
+                  # Stripe Configuration
+                  STRIPE_SECRET_KEY=${{ secrets.STRIPE_SECRET_KEY }}
+                  STRIPE_WEBHOOK_SECRET=${{ secrets.STRIPE_WEBHOOK_SECRET }}
+
+                  # Email Configuration
+                  EMAIL_HOST=${{ secrets.EMAIL_HOST }}
+                  EMAIL_PORT=587
+                  EMAIL_USER=${{ secrets.EMAIL_USER }}
+                  EMAIL_PASSWORD=${{ secrets.EMAIL_PASSWORD }}
+                  EMAIL_FROM=noreply@assolution.com
+
+                  # Application Configuration
+                  APP_ENV=production
+                  APP_DEBUG=false
+                  APP_URL=${{ secrets.FRONTEND_BASE_URL }}
+                  FRONTEND_URL=${{ secrets.FRONTEND_BASE_URL }}
+                  EOF
+
+                  echo "📝 Création du fichier application-prod.properties..."
+                  cat > inscriptions/inscriptions-backend/src/main/resources/application-prod.properties << 'EOF'
+                  # Server Configuration
+                  server.port=8080
+                  server.servlet.context-path=/api
+
+                  # Database Configuration
+                  spring.datasource.url=jdbc:postgresql://postgres:5432/assolution_prod
+                  spring.datasource.username=assolution_user
+                  spring.datasource.password=${{ secrets.DB_PASSWORD }}
+                  spring.datasource.driver-class-name=org.postgresql.Driver
+
+                  # JPA Configuration
+                  spring.jpa.hibernate.ddl-auto=validate
+                  spring.jpa.show-sql=false
+                  spring.jpa.properties.hibernate.dialect=org.hibernate.dialect.PostgreSQLDialect
+                  spring.jpa.properties.hibernate.format_sql=false
+
+                  # JWT Configuration
+                  app.jwt.secret=${{ secrets.JWT_SECRET }}
+                  app.jwt.expiration=86400
+
+                  # Stripe Configuration
+                  stripe.secret.key=${{ secrets.STRIPE_SECRET_KEY }}
+                  stripe.webhook.secret=${{ secrets.STRIPE_WEBHOOK_SECRET }}
+
+                  # Email Configuration
+                  spring.mail.host=${{ secrets.EMAIL_HOST }}
+                  spring.mail.port=587
+                  spring.mail.username=${{ secrets.EMAIL_USER }}
+                  spring.mail.password=${{ secrets.EMAIL_PASSWORD }}
+                  spring.mail.properties.mail.smtp.auth=true
+                  spring.mail.properties.mail.smtp.starttls.enable=true
+
+                  # Logging Configuration
+                  logging.level.com.assolution=WARN
+                  logging.level.org.springframework.security=WARN
+                  logging.level.org.hibernate=WARN
+                  EOF
+
+                  echo "📝 Création du fichier 01-init-db.sql..."
+                  cat > init-scripts/01-init-db.sql << 'EOF'
+                  -- Création de la base de données et de l'utilisateur pour la production
+                  CREATE DATABASE IF NOT EXISTS assolution_prod;
+                  CREATE USER IF NOT EXISTS 'assolution_user'@'%' IDENTIFIED BY '${{ secrets.DB_PASSWORD }}';
+                  GRANT ALL PRIVILEGES ON assolution_prod.* TO 'assolution_user'@'%';
+                  FLUSH PRIVILEGES;
+
+                  -- Utilisation de la base de données
+                  USE assolution_prod;
+
+                  -- Tables de production
+                  -- Les migrations Flyway ou Liquibase se chargeront du reste
+                  EOF
+
+            - name: 🔬 E2E Tests
+              run: |
+                  # Installer Cypress
+                  npm install cypress --save-dev
+                  npx cypress verify
+
+                  # Démarrer les services en arrière-plan
+                  docker-compose -f docker-compose.prod.yml up -d
+
+                  # Attendre que les services soient prêts (plus de temps pour la prod)
+                  timeout 180 bash -c 'until curl -f http://localhost:80; do sleep 5; done'
+
+                  # Lancer les tests Cypress
+                  npx cypress run --config-file ./cypress.config.js --spec "./cypress/e2e/**/*.cy.js" --browser chrome --headless
+
+                  # Nettoyer
+                  docker-compose -f docker-compose.prod.yml down
+
+    security-scan:
+        name: 🔒 Security Scan
+        runs-on: ubuntu-latest
+        needs: [test-complete]
+
+        steps:
+            - name: 📥 Checkout code
+              uses: actions/checkout@v4
+              with:
+                  fetch-depth: 0
+
+            - name: 🔍 Run Trivy vulnerability scanner
+              uses: aquasecurity/trivy-action@master
+              with:
+                  scan-type: "fs"
+                  scan-ref: "."
+                  format: "sarif"
+                  output: "trivy-results.sarif"
+
+            - name: 📤 Upload Trivy scan results to GitHub Security tab
+              uses: github/codeql-action/upload-sarif@v3
+              if: always()
+              with:
+                  sarif_file: "trivy-results.sarif"
+
+    deploy-prod:
+        name: 🚀 Deploy to Production
+        runs-on: ubuntu-latest
+        needs: [test-complete, security-scan]
+        environment: production
+
+        steps:
+            - name: 📥 Checkout code
+              uses: actions/checkout@v4
+              with:
+                  fetch-depth: 0
+
+            - name: 🔧 Generate all config files from secrets
+              run: |
+                  echo "📝 Création du fichier .env.prod..."
+                  cat > .env.prod << 'EOF'
+                  # Database Configuration
+                  DB_HOST=postgres
+                  DB_PORT=5432
+                  DB_NAME=assolution_prod
+                  DB_USER=assolution_user
+                  DB_PASSWORD=${{ secrets.DB_PASSWORD }}
+
+                  # JWT Configuration
+                  JWT_SECRET=${{ secrets.JWT_SECRET }}
+                  JWT_EXPIRATION=86400
+
+                  # Stripe Configuration
+                  STRIPE_SECRET_KEY=${{ secrets.STRIPE_SECRET_KEY }}
+                  STRIPE_WEBHOOK_SECRET=${{ secrets.STRIPE_WEBHOOK_SECRET }}
+
+                  # Email Configuration
+                  EMAIL_HOST=${{ secrets.EMAIL_HOST }}
+                  EMAIL_PORT=587
+                  EMAIL_USER=${{ secrets.EMAIL_USER }}
+                  EMAIL_PASSWORD=${{ secrets.EMAIL_PASSWORD }}
+                  EMAIL_FROM=noreply@assolution.com
+
+                  # Application Configuration
+                  APP_ENV=production
+                  APP_DEBUG=false
+                  APP_URL=${{ secrets.FRONTEND_BASE_URL }}
+                  FRONTEND_URL=${{ secrets.FRONTEND_BASE_URL }}
+                  EOF
+
+                  echo "📝 Rollback completed"
                   exit 1
