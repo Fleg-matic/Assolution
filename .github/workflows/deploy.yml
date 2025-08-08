@@ -220,7 +220,8 @@ jobs:
                   logging.level.org.springframework.security=DEBUG
                   EOF
 
-                  echo "📝 Création du fichier 01-init-db.sql..."
+                  echo "📝 Création du dossier et fichier init-scripts/01-init-db.sql..."
+                  mkdir -p init-scripts
                   cat > init-scripts/01-init-db.sql << 'EOF'
                   -- Création de la base de données et de l'utilisateur pour le développement
                   CREATE DATABASE IF NOT EXISTS assolution_dev;
@@ -266,112 +267,8 @@ jobs:
               with:
                   fetch-depth: 0
 
-            - name: 🔧 Generate all config files from secrets
+            - name: 🔧 Generate deployment config files
               run: |
-                  echo "📝 Création du fichier .env..."
-                  cat > .env << 'EOF'
-                  # Database Configuration
-                  DB_HOST=postgres
-                  DB_PORT=5432
-                  DB_NAME=assolution_dev
-                  DB_USER=assolution_user
-                  DB_PASSWORD=${{ secrets.DB_PASSWORD }}
-
-                  # JWT Configuration
-                  JWT_SECRET=${{ secrets.JWT_SECRET }}
-                  JWT_EXPIRATION=86400
-
-                  # Stripe Configuration
-                  STRIPE_SECRET_KEY=${{ secrets.STRIPE_SECRET_KEY }}
-                  STRIPE_WEBHOOK_SECRET=${{ secrets.STRIPE_WEBHOOK_SECRET }}
-
-                  # Email Configuration
-                  EMAIL_HOST=${{ secrets.EMAIL_HOST }}
-                  EMAIL_PORT=587
-                  EMAIL_USER=${{ secrets.EMAIL_USER }}
-                  EMAIL_PASSWORD=${{ secrets.EMAIL_PASSWORD }}
-                  EMAIL_FROM=noreply@assolution.com
-
-                  # Application Configuration
-                  APP_ENV=development
-                  APP_DEBUG=true
-                  APP_URL=http://localhost:8080
-                  FRONTEND_URL=http://localhost:4200
-                  EOF
-
-                  echo "📝 Création du fichier application.properties..."
-                  cat > inscriptions/inscriptions-backend/src/main/resources/application.properties << 'EOF'
-                  # Server Configuration
-                  server.port=8080
-                  server.servlet.context-path=/api
-
-                  # Database Configuration
-                  spring.datasource.url=jdbc:postgresql://postgres:5432/assolution_dev
-                  spring.datasource.username=assolution_user
-                  spring.datasource.password=${{ secrets.DB_PASSWORD }}
-                  spring.datasource.driver-class-name=org.postgresql.Driver
-
-                  # JPA Configuration
-                  spring.jpa.hibernate.ddl-auto=update
-                  spring.jpa.show-sql=false
-                  spring.jpa.properties.hibernate.dialect=org.hibernate.dialect.PostgreSQLDialect
-                  spring.jpa.properties.hibernate.format_sql=true
-
-                  # JWT Configuration
-                  app.jwt.secret=${{ secrets.JWT_SECRET }}
-                  app.jwt.expiration=86400
-
-                  # Stripe Configuration
-                  stripe.secret.key=${{ secrets.STRIPE_SECRET_KEY }}
-                  stripe.webhook.secret=${{ secrets.STRIPE_WEBHOOK_SECRET }}
-
-                  # Email Configuration
-                  spring.mail.host=${{ secrets.EMAIL_HOST }}
-                  spring.mail.port=587
-                  spring.mail.username=${{ secrets.EMAIL_USER }}
-                  spring.mail.password=${{ secrets.EMAIL_PASSWORD }}
-                  spring.mail.properties.mail.smtp.auth=true
-                  spring.mail.properties.mail.smtp.starttls.enable=true
-
-                  # Logging Configuration
-                  logging.level.com.assolution=INFO
-                  logging.level.org.springframework.security=DEBUG
-                  EOF
-
-                  echo "📝 Création du fichier cypress.config.js..."
-                  cat > cypress.config.js << 'EOF'
-                  const { defineConfig } = require('cypress')
-
-                  module.exports = defineConfig({
-                    e2e: {
-                      baseUrl: '${{ secrets.CYPRESS_BASE_URL }}',
-                      apiUrl: '${{ secrets.CYPRESS_API_URL }}',
-                      env: {
-                        environment: '${{ secrets.CYPRESS_ENVIRONMENT }}',
-                        testUserEmail: '${{ secrets.CYPRESS_TEST_USER_EMAIL }}',
-                        testUserPassword: '${{ secrets.CYPRESS_TEST_USER_PASSWORD }}',
-                        testAdminEmail: '${{ secrets.CYPRESS_TEST_ADMIN_EMAIL }}',
-                        testAdminPassword: '${{ secrets.CYPRESS_TEST_ADMIN_PASSWORD }}'
-                      },
-                      setupNodeEvents(on, config) {
-                        // implement node event listeners here
-                      },
-                    },
-                  })
-                  EOF
-
-                  echo "📝 Création du fichier 01-init-db.sql..."
-                  cat > init-scripts/01-init-db.sql << 'EOF'
-                  -- Création de la base de données et de l'utilisateur pour le développement
-                  CREATE DATABASE IF NOT EXISTS assolution_dev;
-                  CREATE USER IF NOT EXISTS 'assolution_user'@'%' IDENTIFIED BY '${{ secrets.DB_PASSWORD }}';
-                  GRANT ALL PRIVILEGES ON assolution_dev.* TO 'assolution_user'@'%';
-                  FLUSH PRIVILEGES;
-
-                  -- Utilisation de la base de données
-                  USE assolution_dev;
-                  EOF
-
                   echo "📝 Création du fichier environment.ts..."
                   cat > inscriptions/inscriptions-frontend/src/environments/environment.ts << 'EOF'
                   export const environment = {
@@ -396,7 +293,7 @@ jobs:
                   };
                   EOF
 
-                  echo "✅ Tous les fichiers de configuration créés depuis les secrets GitHub !"
+                  echo "✅ Fichiers de déploiement créés !"
 
             - name: 🔑 Setup SSH
               uses: webfactory/ssh-agent@v0.9.0
