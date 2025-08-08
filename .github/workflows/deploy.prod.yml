@@ -91,7 +91,7 @@ jobs:
             - name: 🔬 E2E Tests
               uses: cypress-io/github-action@v6
               with:
-                  working-directory: ./inscriptions/inscriptions-frontend
+                  working-directory: ./
                   start: docker-compose -f docker-compose.prod.yml up -d
                   wait-on: "http://localhost:80"
                   wait-on-timeout: 180
