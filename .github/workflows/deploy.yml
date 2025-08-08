@@ -80,17 +80,6 @@ jobs:
               uses: actions/checkout@v4
               with:
                   fetch-depth: 0
-              uses: actions/setup-node@v4
-              with:
-                  node-version: "22"
-                  cache: "npm"
-                  cache-dependency-path: ./inscriptions/inscriptions-frontend/package-lock.json
-
-            - name: 🧹 Clean Installation
-              working-directory: ./inscriptions/inscriptions-frontend
-              run: |
-                  npm ci --omit=dev --prefer-offline --no-audit --fund false
-                  npx browserslist@latest --update-db
 
             - name: 🟢 Setup Node.js 22
               uses: actions/setup-node@v4
@@ -101,7 +90,10 @@ jobs:
 
             - name: 📦 Install Frontend Dependencies
               working-directory: ./inscriptions/inscriptions-frontend
-              run: npm install --legacy-peer-deps
+              run: |
+                  npm cache clean --force
+                  rm -f package-lock.json
+                  npm install
 
             - name: 🔧 Run Frontend Tests
               working-directory: ./inscriptions/inscriptions-frontend
@@ -112,18 +104,7 @@ jobs:
                   sudo apt-get update
                   sudo apt-get install -y libgtk-3-0 libnss3 libxss1 libasound2 libxtst6 xvfb
                   Xvfb :99 -screen 0 1024x768x16 &
-                  npm run test -- --watch=false --browsers=ChromeHeadless --no-watch --no-progress
-
-            - name: 🐛 Debug Frontend Environment
-              working-directory: ./inscriptions/inscriptions-frontend
-              run: |
-                  echo "=== Node/NPM Versions ==="
-                  node -v
-                  npm -v
-                  echo "=== Dependencies Tree ==="
-                  npm ls --depth=0
-                  echo "=== Browser Binaries ==="
-                  which google-chrome-stable || echo "Chrome not found"
+                  npm run test:ci
 
             - name: 🏗️ Build Frontend
               working-directory: ./inscriptions/inscriptions-frontend
@@ -200,18 +181,20 @@ jobs:
                     }
                   }
                   EOF
-                  npm install --legacy-peer-deps
+                  npm ci
 
             - name: 🔧 Run Cypress Tests
               uses: cypress-io/github-action@v6
               with:
-                  working-directory: ./inscriptions/inscriptions-frontend
+                  working-directory: ./
                   install: false
                   start: docker-compose up -d
                   wait-on: "http://localhost:80"
                   wait-on-timeout: 120
                   browser: chrome
                   headless: true
+                  config-file: ./inscriptions/inscriptions-frontend/cypress.config.js
+                  spec-pattern: ./inscriptions/inscriptions-frontend/cypress/e2e/**/*.cy.js
 
     deploy-dev:
         name: 🚀 Deploy to Development

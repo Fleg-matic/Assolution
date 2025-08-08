@@ -60,8 +60,10 @@ jobs:
             - name: 📦 Frontend Tests & Build
               working-directory: ./inscriptions/inscriptions-frontend
               run: |
-                  npm install --legacy-peer-deps
-                  npm run test -- --watch=false --browsers=ChromeHeadless
+                  npm cache clean --force
+                  rm -f package-lock.json
+                  npm install
+                  npm run test:ci
                   npm run build:prod
 
             - name: 📊 SonarQube Analysis
