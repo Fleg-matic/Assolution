@@ -31,6 +31,21 @@ jobs:
               with:
                   fetch-depth: 0
 
+            - name: 🔍 Check ports and clean environment
+              run: |
+                  echo "🔍 Checking running containers..."
+                  docker ps -a || true
+
+                  echo "🔍 Checking port 5432..."
+                  sudo netstat -tulpn | grep :5432 || echo "Port 5432 is free"
+
+                  echo "🧹 Cleaning Docker environment..."
+                  docker system prune -af --volumes || true
+
+                  echo "🛑 Stopping any PostgreSQL services..."
+                  sudo systemctl stop postgresql || true
+                  sudo pkill -f postgres || true
+
             - name: ☕ Setup Java 21
               uses: actions/setup-java@v4
               with:

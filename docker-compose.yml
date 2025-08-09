@@ -16,7 +16,7 @@ services:
       - ./init-scripts:/docker-entrypoint-initdb.d
       - ./backups:/backups
     ports:
-      - "5432:5432"
+      - "5433:5432"
     networks:
       - assolution-network
     healthcheck:
