@@ -51,7 +51,7 @@ RUN groupadd -r appuser && useradd -r -g appuser -d /app -s /bin/false appuser
 WORKDIR /app
 
 # Copie du JAR depuis le builder
-COPY --from=builder --chown=appuser:appuser /build/target/*.jar app.jar
+COPY --from=builder --chown=appuser:appuser /build/target/assolution-backend.jar app.jar
 
 # Création des répertoires de logs
 RUN mkdir -p /app/logs && chown -R appuser:appuser /app

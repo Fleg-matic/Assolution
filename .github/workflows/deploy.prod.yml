@@ -155,21 +155,55 @@ jobs:
                         SPRING_DATASOURCE_USERNAME: assolution_user
                         SPRING_DATASOURCE_PASSWORD: ${{ secrets.DB_PASSWORD }}
                         JAVA_OPTS: "-Xmx512m -Xms256m -XX:+UseG1GC"
-                      # Override temporaire pour bypasser le script défaillant
-                      command: >
+                      # Override complet du entrypoint pour bypasser le script défaillant
+                      entrypoint: >
                         sh -c "
-                          echo '🔍 Debugging JAR location...'
-                          find /app -name '*.jar' -type f
+                          echo '🔍 === DIAGNOSTIC ASSOLUTION-BACKEND ==='
+                          echo '📂 Contenu de /app:'
                           ls -la /app/
+                          
+                          echo '💾 Database Host: postgres'
+                          echo '⏳ Waiting for database connection...'
+                          while ! nc -z postgres 5432; do sleep 1; done
+                          echo '✅ Database connection established!'
+                          
+                          # Le Dockerfile copie le JAR en tant que app.jar
                           if [ -f /app/app.jar ]; then
-                            echo '✅ Found app.jar, starting application...'
+                            echo '✅ Found app.jar (from Dockerfile), starting application...'
                             exec java -Xmx512m -Xms256m -XX:+UseG1GC -Dspring.profiles.active=prod -jar /app/app.jar
-                          elif [ -f /app/inscriptions-backend-*.jar ]; then
-                            echo '✅ Found inscriptions-backend JAR, starting application...'
-                            exec java -Xmx512m -Xms256m -XX:+UseG1GC -Dspring.profiles.active=prod -jar /app/inscriptions-backend-*.jar
                           else
-                            echo '❌ No JAR file found in /app/'
+                            echo '❌ app.jar not found! Investigating...'
+                            echo '📂 All files in /app:'
                             ls -la /app/
+                            
+                            # Vérifier le build stage pour diagnostiquer
+                            if [ -d /build/target ]; then
+                              echo '📂 Builder target directory content:'
+                              ls -la /build/target/
+                              
+                              # Chercher le JAR principal (pas sources/javadoc)
+                              if [ -f /build/target/assolution-backend.jar ]; then
+                                echo '🔄 Found assolution-backend.jar in builder, copying manually...'
+                                cp /build/target/assolution-backend.jar /app/app.jar
+                                exec java -Xmx512m -Xms256m -XX:+UseG1GC -Dspring.profiles.active=prod -jar /app/app.jar
+                              else
+                                echo '❌ assolution-backend.jar not found in builder target!'
+                                echo '🔍 Checking for any JAR files:'
+                                find /build/target -name '*.jar' -type f
+                                
+                                # Dernière tentative avec n'importe quel JAR exécutable
+                                for jar in /build/target/*.jar; do
+                                  if [ -f \"\$jar\" ] && [[ \"\$jar\" != *sources* ]] && [[ \"\$jar\" != *javadoc* ]]; then
+                                    echo \"🔄 Trying to use: \$jar\"
+                                    cp \"\$jar\" /app/app.jar
+                                    exec java -Xmx512m -Xms256m -XX:+UseG1GC -Dspring.profiles.active=prod -jar /app/app.jar
+                                  fi
+                                done
+                              fi
+                            fi
+                            
+                            echo '❌ Could not find any executable JAR!'
+                            echo '🐛 This suggests the Docker build failed or the JAR was not created properly.'
                             exit 1
                           fi
                         "
