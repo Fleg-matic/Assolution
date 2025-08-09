@@ -22,7 +22,7 @@ COPY src/ ./src/
 RUN ./mvnw clean package -DskipTests -Dmaven.test.skip=true
 
 # Stage de production
-FROM eclipse-temurin:21-jre-alpine
+FROM eclipse-temurin:21-jre-jammy
 
 # Métadonnées
 LABEL maintainer="Assolution Team"
