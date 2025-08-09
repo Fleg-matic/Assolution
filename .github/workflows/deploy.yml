@@ -178,14 +178,20 @@ jobs:
                         dockerfile: Dockerfile
                       environment:
                         SPRING_PROFILES_ACTIVE: dev
-                        SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/assolution_dev
-                        SPRING_DATASOURCE_USERNAME: assolution_user
-                        SPRING_DATASOURCE_PASSWORD: ${{ secrets.DB_PASSWORD }}
+                        DB_HOST: postgres
+                        DB_PORT: 5432
+                        DB_NAME: assolution_dev
+                        DB_USER: assolution_user
+                        DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
                         JWT_SECRET: ${{ secrets.JWT_SECRET }}
                         STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
+                        STRIPE_WEBHOOK_SECRET: ${{ secrets.STRIPE_WEBHOOK_SECRET }}
                         EMAIL_HOST: ${{ secrets.EMAIL_HOST }}
                         EMAIL_USER: ${{ secrets.EMAIL_USER }}
                         EMAIL_PASSWORD: ${{ secrets.EMAIL_PASSWORD }}
+                        SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/assolution_dev
+                        SPRING_DATASOURCE_USERNAME: assolution_user
+                        SPRING_DATASOURCE_PASSWORD: ${{ secrets.DB_PASSWORD }}
                       depends_on:
                         postgres:
                           condition: service_healthy
@@ -193,13 +199,6 @@ jobs:
                         - assolution-network
                       ports:
                         - "8080:8080"
-                      # Désactiver health check temporairement
-                      # healthcheck:
-                      #   test: ["CMD-SHELL", "curl -f http://localhost:8080/api/health || exit 1"]
-                      #   interval: 30s
-                      #   timeout: 10s
-                      #   retries: 5
-                      #   start_period: 60s
                     
                     frontend:
                       build:
