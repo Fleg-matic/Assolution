@@ -148,17 +148,19 @@ jobs:
                         EMAIL_HOST: ${{ secrets.EMAIL_HOST }}
                         EMAIL_USER: ${{ secrets.EMAIL_USER }}
                         EMAIL_PASSWORD: ${{ secrets.EMAIL_PASSWORD }}
+                        JAVA_OPTS: "-Xmx512m -XX:+UseContainerSupport"
                       depends_on:
                         postgres:
                           condition: service_healthy
                       networks:
                         - assolution-prod-network
+                      restart: unless-stopped
                       healthcheck:
-                        test: ["CMD-SHELL", "curl -f http://localhost:8080/api/health || exit 1"]
+                        test: ["CMD-SHELL", "curl -f http://localhost:8080/api/actuator/health || exit 1"]
                         interval: 30s
-                        timeout: 10s
+                        timeout: 15s
                         retries: 5
-                        start_period: 60s
+                        start_period: 120s
                     
                     frontend:
                       build:
@@ -205,18 +207,23 @@ jobs:
                   # Server Configuration
                   server.port=8080
                   server.servlet.context-path=/api
+                  management.endpoints.web.exposure.include=health,info
+                  management.endpoint.health.show-details=always
 
                   # Database Configuration
                   spring.datasource.url=jdbc:postgresql://postgres:5432/assolution_prod
                   spring.datasource.username=assolution_user
                   spring.datasource.password=${{ secrets.DB_PASSWORD }}
                   spring.datasource.driver-class-name=org.postgresql.Driver
+                  spring.datasource.hikari.connection-timeout=30000
+                  spring.datasource.hikari.maximum-pool-size=10
 
                   # JPA Configuration
-                  spring.jpa.hibernate.ddl-auto=validate
+                  spring.jpa.hibernate.ddl-auto=update
                   spring.jpa.show-sql=false
                   spring.jpa.properties.hibernate.dialect=org.hibernate.dialect.PostgreSQLDialect
                   spring.jpa.properties.hibernate.format_sql=false
+                  spring.jpa.properties.hibernate.jdbc.lob.non_contextual_creation=true
 
                   # JWT Configuration
                   app.jwt.secret=${{ secrets.JWT_SECRET }}
@@ -235,9 +242,10 @@ jobs:
                   spring.mail.properties.mail.smtp.starttls.enable=true
 
                   # Logging Configuration
-                  logging.level.com.assolution=WARN
+                  logging.level.com.assolution=INFO
                   logging.level.org.springframework.security=WARN
                   logging.level.org.hibernate=WARN
+                  logging.level.org.springframework.boot.autoconfigure=INFO
                   EOF
 
             - name: 🔬 E2E Tests
@@ -258,13 +266,38 @@ jobs:
 
                   # Attendre que les services soient prêts (plus de temps pour la prod)
                   echo "⏳ Waiting for services to be ready..."
-                  sleep 60
+                  sleep 30
 
-                  # Vérifier les logs pour diagnostic
-                  echo "📋 Checking container status..."
+                  # Diagnostic immédiat en cas de problème
+                  echo "📋 Checking container status immediately..."
                   docker compose -f docker-compose.prod.yml ps
 
-                  echo "📋 Backend logs:"
+                  # Vérifier si le backend a échoué
+                  if ! docker compose -f docker-compose.prod.yml ps | grep backend | grep -q "running"; then
+                    echo "❌ Backend failed to start! Checking logs..."
+                    
+                    echo "📋 PostgreSQL logs:"
+                    docker compose -f docker-compose.prod.yml logs postgres --tail=30
+                    
+                    echo "📋 Backend logs (detailed):"
+                    docker compose -f docker-compose.prod.yml logs backend --tail=50
+                    
+                    echo "📋 Backend container inspect:"
+                    docker inspect $(docker compose -f docker-compose.prod.yml ps -q backend) || echo "Backend container not found"
+                    
+                    echo "📋 Checking if backend can connect to postgres..."
+                    docker compose -f docker-compose.prod.yml exec -T postgres pg_isready -U assolution_user -d assolution_prod || echo "PostgreSQL not ready"
+                    
+                    echo "🔄 Attempting to restart backend..."
+                    docker compose -f docker-compose.prod.yml restart backend
+                    sleep 30
+                  fi
+
+                  # Vérifier les logs pour diagnostic après redémarrage
+                  echo "📋 Final container status..."
+                  docker compose -f docker-compose.prod.yml ps
+
+                  echo "📋 Backend logs after restart:"
                   docker compose -f docker-compose.prod.yml logs backend --tail=20
 
                   echo "📋 Nginx logs:"
