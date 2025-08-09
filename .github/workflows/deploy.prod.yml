@@ -155,6 +155,24 @@ jobs:
                         SPRING_DATASOURCE_USERNAME: assolution_user
                         SPRING_DATASOURCE_PASSWORD: ${{ secrets.DB_PASSWORD }}
                         JAVA_OPTS: "-Xmx512m -Xms256m -XX:+UseG1GC"
+                      # Override temporaire pour bypasser le script défaillant
+                      command: >
+                        sh -c "
+                          echo '🔍 Debugging JAR location...'
+                          find /app -name '*.jar' -type f
+                          ls -la /app/
+                          if [ -f /app/app.jar ]; then
+                            echo '✅ Found app.jar, starting application...'
+                            exec java -Xmx512m -Xms256m -XX:+UseG1GC -Dspring.profiles.active=prod -jar /app/app.jar
+                          elif [ -f /app/inscriptions-backend-*.jar ]; then
+                            echo '✅ Found inscriptions-backend JAR, starting application...'
+                            exec java -Xmx512m -Xms256m -XX:+UseG1GC -Dspring.profiles.active=prod -jar /app/inscriptions-backend-*.jar
+                          else
+                            echo '❌ No JAR file found in /app/'
+                            ls -la /app/
+                            exit 1
+                          fi
+                        "
                       depends_on:
                         postgres:
                           condition: service_healthy
@@ -269,23 +287,47 @@ jobs:
 
                   # Attendre que les services démarrent
                   echo "⏳ Waiting for containers to start..."
-                  sleep 60
+                  sleep 30
 
-                  # Diagnostic complet
+                  # Diagnostic complet AVANT les tests
                   echo "📋 Container status:"
                   docker compose -f docker-compose.prod.yml ps
 
                   echo "📋 PostgreSQL logs:"
                   docker compose -f docker-compose.prod.yml logs postgres --tail=20
 
-                  echo "📋 Backend logs (full):"
-                  docker compose -f docker-compose.prod.yml logs backend --tail=100
+                  echo "📋 Backend logs (COMPLETE):"
+                  docker compose -f docker-compose.prod.yml logs backend
 
-                  echo "📋 Frontend logs:"
-                  docker compose -f docker-compose.prod.yml logs frontend --tail=20
+                  echo "📋 Backend container details:"
+                  docker compose -f docker-compose.prod.yml exec backend ps aux || echo "Cannot access backend container"
 
-                  echo "📋 Nginx logs:"
-                  docker compose -f docker-compose.prod.yml logs nginx --tail=10
+                  echo "📋 Backend environment variables:"
+                  docker compose -f docker-compose.prod.yml exec backend env | grep -E "(DB_|SPRING_|JWT_|STRIPE_)" || echo "Cannot access backend container"
+
+                  echo "📋 Backend network connectivity:"
+                  docker compose -f docker-compose.prod.yml exec backend ping -c 2 postgres || echo "Cannot ping postgres from backend"
+
+                  echo "📋 Check if JAR file exists:"
+                  docker compose -f docker-compose.prod.yml exec backend ls -la /app/ || echo "Cannot access backend filesystem"
+                  docker compose -f docker-compose.prod.yml exec backend find /app -name "*.jar" || echo "No JAR files found"
+
+                  echo "📋 Check build target directory:"
+                  docker compose -f docker-compose.prod.yml exec backend ls -la /build/target/ || echo "Cannot access build target"
+
+                  # Si le backend n'est pas running, essayer de le redémarrer
+                  if ! docker compose -f docker-compose.prod.yml ps | grep backend | grep -q "running"; then
+                    echo "🔄 Backend is not running, attempting restart..."
+                    docker compose -f docker-compose.prod.yml restart backend
+                    echo "⏳ Waiting after restart..."
+                    sleep 60
+                    
+                    echo "📋 Backend logs after restart:"
+                    docker compose -f docker-compose.prod.yml logs backend --tail=50
+                  fi
+
+                  echo "📋 Final container status:"
+                  docker compose -f docker-compose.prod.yml ps
 
                   # Tests manuels étape par étape
                   echo "🔍 Testing PostgreSQL connection..."
