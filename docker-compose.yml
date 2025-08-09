@@ -52,11 +52,11 @@ services:
     volumes:
       - ./logs:/app/logs
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
+      test: ["CMD-SHELL", "curl -f http://localhost:8080/api/health || exit 1"]
       interval: 30s
       timeout: 10s
-      retries: 3
-      start_period: 60s
+      retries: 5
+      start_period: 60s  # Temps avant de commencer les health checks
 
   # Angular Frontend
   frontend:
@@ -79,6 +79,12 @@ services:
       - ./inscriptions/inscriptions-frontend/src:/app/src
       - ./inscriptions/inscriptions-frontend/angular.json:/app/angular.json
       - /app/node_modules
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:4200 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
 
   # Nginx Reverse Proxy
   nginx:
@@ -96,8 +102,10 @@ services:
       - ./nginx/ssl:/etc/nginx/ssl:ro
       - ./logs/nginx:/var/log/nginx
     depends_on:
-      - backend
-      - frontend
+      frontend:
+        condition: service_healthy
+      backend:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost/health"]
       interval: 30s
