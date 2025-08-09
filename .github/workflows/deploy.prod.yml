@@ -16,7 +16,7 @@ jobs:
                 env:
                     POSTGRES_DB: assolution_test
                     POSTGRES_USER: assolution_user
-                    POSTGRES_PASSWORD: test123
+                    POSTGRES_PASSWORD: ${{ secrets.DB_PASSWORD }}
                 options: >-
                     --health-cmd pg_isready
                     --health-interval 10s
@@ -112,35 +112,92 @@ jobs:
                   })
                   EOF
 
-                  echo "📝 Création du fichier .env.prod..."
-                  cat > .env.prod << 'EOF'
-                  # Database Configuration
-                  DB_HOST=postgres
-                  DB_PORT=5432
-                  DB_NAME=assolution_prod
-                  DB_USER=assolution_user
-                  DB_PASSWORD=${{ secrets.DB_PASSWORD }}
+                  echo "📝 Création du fichier docker-compose.prod.yml..."
+                  cat > docker-compose.prod.yml << 'EOF'
+                  version: '3.8'
+                  services:
+                    postgres:
+                      image: postgres:17
+                      environment:
+                        POSTGRES_DB: assolution_prod
+                        POSTGRES_USER: assolution_user
+                        POSTGRES_PASSWORD: ${{ secrets.DB_PASSWORD }}
+                      volumes:
+                        - postgres_data:/var/lib/postgresql/data
+                      healthcheck:
+                        test: ["CMD-SHELL", "pg_isready -U assolution_user -d assolution_prod"]
+                        interval: 10s
+                        timeout: 5s
+                        retries: 5
+                      ports:
+                        - "5432:5432"
+                    
+                    backend:
+                      build:
+                        context: ./inscriptions/inscriptions-backend
+                        dockerfile: Dockerfile.prod
+                      environment:
+                        SPRING_PROFILES_ACTIVE: prod
+                        SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/assolution_prod
+                        SPRING_DATASOURCE_USERNAME: assolution_user
+                        SPRING_DATASOURCE_PASSWORD: ${{ secrets.DB_PASSWORD }}
+                        JWT_SECRET: ${{ secrets.JWT_SECRET }}
+                        STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
+                        EMAIL_HOST: ${{ secrets.EMAIL_HOST }}
+                        EMAIL_USER: ${{ secrets.EMAIL_USER }}
+                        EMAIL_PASSWORD: ${{ secrets.EMAIL_PASSWORD }}
+                      depends_on:
+                        postgres:
+                          condition: service_healthy
+                      ports:
+                        - "8080:8080"
+                      healthcheck:
+                        test: ["CMD-SHELL", "curl -f http://localhost:8080/api/health || exit 1"]
+                        interval: 30s
+                        timeout: 10s
+                        retries: 3
+                    
+                    frontend:
+                      build:
+                        context: ./inscriptions/inscriptions-frontend
+                        dockerfile: Dockerfile.prod
+                      ports:
+                        - "4200:4200"
+                      depends_on:
+                        - backend
+                    
+                    nginx:
+                      image: nginx:alpine
+                      ports:
+                        - "80:80"
+                      volumes:
+                        - ./nginx/nginx.conf:/etc/nginx/nginx.conf
+                      depends_on:
+                        - frontend
+                        - backend
+                    
+                    backup:
+                      image: postgres:17
+                      environment:
+                        POSTGRES_DB: assolution_prod
+                        POSTGRES_USER: assolution_user
+                        POSTGRES_PASSWORD: ${{ secrets.DB_PASSWORD }}
+                      volumes:
+                        - ./backups:/backups
+                      depends_on:
+                        postgres:
+                          condition: service_healthy
+                      command: >
+                        sh -c "
+                          while true; do
+                            sleep 86400
+                            pg_dump -h postgres -U assolution_user -d assolution_prod > /backups/backup_$$(date +%Y%m%d_%H%M%S).sql
+                            find /backups -name '*.sql' -mtime +7 -delete
+                          done
+                        "
 
-                  # JWT Configuration
-                  JWT_SECRET=${{ secrets.JWT_SECRET }}
-                  JWT_EXPIRATION=86400
-
-                  # Stripe Configuration
-                  STRIPE_SECRET_KEY=${{ secrets.STRIPE_SECRET_KEY }}
-                  STRIPE_WEBHOOK_SECRET=${{ secrets.STRIPE_WEBHOOK_SECRET }}
-
-                  # Email Configuration
-                  EMAIL_HOST=${{ secrets.EMAIL_HOST }}
-                  EMAIL_PORT=587
-                  EMAIL_USER=${{ secrets.EMAIL_USER }}
-                  EMAIL_PASSWORD=${{ secrets.EMAIL_PASSWORD }}
-                  EMAIL_FROM=noreply@assolution.com
-
-                  # Application Configuration
-                  APP_ENV=production
-                  APP_DEBUG=false
-                  APP_URL=${{ secrets.FRONTEND_BASE_URL }}
-                  FRONTEND_URL=${{ secrets.FRONTEND_BASE_URL }}
+                  volumes:
+                    postgres_data:
                   EOF
 
                   echo "📝 Création du fichier application-prod.properties..."
@@ -181,22 +238,6 @@ jobs:
                   logging.level.com.assolution=WARN
                   logging.level.org.springframework.security=WARN
                   logging.level.org.hibernate=WARN
-                  EOF
-
-                  echo "📝 Création du dossier et fichier init-scripts/01-init-db.sql..."
-                  mkdir -p init-scripts
-                  cat > init-scripts/01-init-db.sql << 'EOF'
-                  -- Création de la base de données et de l'utilisateur pour la production
-                  CREATE DATABASE IF NOT EXISTS assolution_prod;
-                  CREATE USER IF NOT EXISTS 'assolution_user'@'%' IDENTIFIED BY '${{ secrets.DB_PASSWORD }}';
-                  GRANT ALL PRIVILEGES ON assolution_prod.* TO 'assolution_user'@'%';
-                  FLUSH PRIVILEGES;
-
-                  -- Utilisation de la base de données
-                  USE assolution_prod;
-
-                  -- Tables de production
-                  -- Les migrations Flyway ou Liquibase se chargeront du reste
                   EOF
 
             - name: 🔬 E2E Tests

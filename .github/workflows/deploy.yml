@@ -150,35 +150,66 @@ jobs:
                   })
                   EOF
 
-                  echo "📝 Création du fichier .env..."
-                  cat > .env << 'EOF'
-                  # Database Configuration
-                  DB_HOST=postgres
-                  DB_PORT=5432
-                  DB_NAME=assolution_dev
-                  DB_USER=assolution_user
-                  DB_PASSWORD=${{ secrets.DB_PASSWORD }}
+                  echo "📝 Création du fichier docker-compose.yml..."
+                  cat > docker-compose.yml << 'EOF'
+                  version: '3.8'
+                  services:
+                    postgres:
+                      image: postgres:17
+                      environment:
+                        POSTGRES_DB: assolution_dev
+                        POSTGRES_USER: assolution_user
+                        POSTGRES_PASSWORD: ${{ secrets.DB_PASSWORD }}
+                      volumes:
+                        - postgres_data:/var/lib/postgresql/data
+                      healthcheck:
+                        test: ["CMD-SHELL", "pg_isready -U assolution_user -d assolution_dev"]
+                        interval: 10s
+                        timeout: 5s
+                        retries: 5
+                      ports:
+                        - "5432:5432"
+                    
+                    backend:
+                      build:
+                        context: ./inscriptions/inscriptions-backend
+                        dockerfile: Dockerfile
+                      environment:
+                        SPRING_PROFILES_ACTIVE: dev
+                        SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/assolution_dev
+                        SPRING_DATASOURCE_USERNAME: assolution_user
+                        SPRING_DATASOURCE_PASSWORD: ${{ secrets.DB_PASSWORD }}
+                        JWT_SECRET: ${{ secrets.JWT_SECRET }}
+                        STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
+                        EMAIL_HOST: ${{ secrets.EMAIL_HOST }}
+                        EMAIL_USER: ${{ secrets.EMAIL_USER }}
+                        EMAIL_PASSWORD: ${{ secrets.EMAIL_PASSWORD }}
+                      depends_on:
+                        - postgres
+                      ports:
+                        - "8080:8080"
+                    
+                    frontend:
+                      build:
+                        context: ./inscriptions/inscriptions-frontend
+                        dockerfile: Dockerfile
+                      ports:
+                        - "4200:4200"
+                      depends_on:
+                        - backend
+                    
+                    nginx:
+                      image: nginx:alpine
+                      ports:
+                        - "80:80"
+                      volumes:
+                        - ./nginx/nginx.conf:/etc/nginx/nginx.conf
+                      depends_on:
+                        - frontend
+                        - backend
 
-                  # JWT Configuration
-                  JWT_SECRET=${{ secrets.JWT_SECRET }}
-                  JWT_EXPIRATION=86400
-
-                  # Stripe Configuration
-                  STRIPE_SECRET_KEY=${{ secrets.STRIPE_SECRET_KEY }}
-                  STRIPE_WEBHOOK_SECRET=${{ secrets.STRIPE_WEBHOOK_SECRET }}
-
-                  # Email Configuration
-                  EMAIL_HOST=${{ secrets.EMAIL_HOST }}
-                  EMAIL_PORT=587
-                  EMAIL_USER=${{ secrets.EMAIL_USER }}
-                  EMAIL_PASSWORD=${{ secrets.EMAIL_PASSWORD }}
-                  EMAIL_FROM=noreply@assolution.com
-
-                  # Application Configuration
-                  APP_ENV=development
-                  APP_DEBUG=true
-                  APP_URL=http://localhost:8080
-                  FRONTEND_URL=http://localhost:4200
+                  volumes:
+                    postgres_data:
                   EOF
 
                   echo "📝 Création du fichier application.properties..."
@@ -218,22 +249,6 @@ jobs:
                   # Logging Configuration
                   logging.level.com.assolution=INFO
                   logging.level.org.springframework.security=DEBUG
-                  EOF
-
-                  echo "📝 Création du dossier et fichier init-scripts/01-init-db.sql..."
-                  mkdir -p init-scripts
-                  cat > init-scripts/01-init-db.sql << 'EOF'
-                  -- Création de la base de données et de l'utilisateur pour le développement
-                  CREATE DATABASE IF NOT EXISTS assolution_dev;
-                  CREATE USER IF NOT EXISTS 'assolution_user'@'%' IDENTIFIED BY '${{ secrets.DB_PASSWORD }}';
-                  GRANT ALL PRIVILEGES ON assolution_dev.* TO 'assolution_user'@'%';
-                  FLUSH PRIVILEGES;
-
-                  -- Utilisation de la base de données
-                  USE assolution_dev;
-
-                  -- Tables de base pour les tests E2E
-                  -- Ajoutez ici vos tables de base si nécessaire
                   EOF
 
             - name: 📦 Install Cypress
