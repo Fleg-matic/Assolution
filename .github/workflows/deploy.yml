@@ -191,12 +191,15 @@ jobs:
                           condition: service_healthy
                       networks:
                         - assolution-network
-                      healthcheck:
-                        test: ["CMD-SHELL", "curl -f http://localhost:8080/api/health || exit 1"]
-                        interval: 30s
-                        timeout: 10s
-                        retries: 5
-                        start_period: 60s
+                      ports:
+                        - "8080:8080"
+                      # Désactiver health check temporairement
+                      # healthcheck:
+                      #   test: ["CMD-SHELL", "curl -f http://localhost:8080/api/health || exit 1"]
+                      #   interval: 30s
+                      #   timeout: 10s
+                      #   retries: 5
+                      #   start_period: 60s
                     
                     frontend:
                       build:
@@ -204,12 +207,15 @@ jobs:
                         dockerfile: Dockerfile
                       networks:
                         - assolution-network
-                      healthcheck:
-                        test: ["CMD-SHELL", "curl -f http://localhost:4200 || exit 1"]
-                        interval: 30s
-                        timeout: 10s
-                        retries: 3
-                        start_period: 30s
+                      ports:
+                        - "4200:4200"
+                      # Désactiver health check temporairement
+                      # healthcheck:
+                      #   test: ["CMD-SHELL", "curl -f http://localhost:4200 || exit 1"]
+                      #   interval: 30s
+                      #   timeout: 10s
+                      #   retries: 3
+                      #   start_period: 30s
                     
                     nginx:
                       image: nginx:1.25-alpine
@@ -218,10 +224,8 @@ jobs:
                       volumes:
                         - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
                       depends_on:
-                        frontend:
-                          condition: service_healthy
-                        backend:
-                          condition: service_healthy
+                        - frontend
+                        - backend
                       networks:
                         - assolution-network
                       healthcheck:

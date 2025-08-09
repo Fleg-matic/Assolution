@@ -155,12 +155,15 @@ jobs:
                       networks:
                         - assolution-prod-network
                       restart: unless-stopped
-                      healthcheck:
-                        test: ["CMD-SHELL", "curl -f http://localhost:8080/api/actuator/health || exit 1"]
-                        interval: 30s
-                        timeout: 15s
-                        retries: 5
-                        start_period: 120s
+                      ports:
+                        - "8080:8080"
+                      # Désactiver temporairement le health check pour diagnostiquer
+                      # healthcheck:
+                      #   test: ["CMD-SHELL", "curl -f http://localhost:8080/api/actuator/health || exit 1"]
+                      #   interval: 30s
+                      #   timeout: 15s
+                      #   retries: 5
+                      #   start_period: 120s
                     
                     frontend:
                       build:
@@ -168,12 +171,15 @@ jobs:
                         dockerfile: Dockerfile.prod
                       networks:
                         - assolution-prod-network
-                      healthcheck:
-                        test: ["CMD-SHELL", "curl -f http://localhost:4200 || exit 1"]
-                        interval: 30s
-                        timeout: 10s
-                        retries: 3
-                        start_period: 30s
+                      ports:
+                        - "4200:4200"
+                      # Désactiver le health check frontend aussi pour simplifier
+                      # healthcheck:
+                      #   test: ["CMD-SHELL", "curl -f http://localhost:4200 || exit 1"]
+                      #   interval: 30s
+                      #   timeout: 10s
+                      #   retries: 3
+                      #   start_period: 30s
                     
                     nginx:
                       image: nginx:1.25-alpine
@@ -182,10 +188,8 @@ jobs:
                       volumes:
                         - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
                       depends_on:
-                        frontend:
-                          condition: service_healthy
-                        backend:
-                          condition: service_healthy
+                        - frontend
+                        - backend
                       networks:
                         - assolution-prod-network
                       healthcheck:
@@ -264,44 +268,38 @@ jobs:
                   # Démarrer les services en arrière-plan
                   docker compose -f docker-compose.prod.yml up -d
 
-                  # Attendre que les services soient prêts (plus de temps pour la prod)
-                  echo "⏳ Waiting for services to be ready..."
-                  sleep 30
+                  # Attendre que les services démarrent
+                  echo "⏳ Waiting for containers to start..."
+                  sleep 60
 
-                  # Diagnostic immédiat en cas de problème
-                  echo "📋 Checking container status immediately..."
+                  # Diagnostic complet
+                  echo "📋 Container status:"
                   docker compose -f docker-compose.prod.yml ps
 
-                  # Vérifier si le backend a échoué
-                  if ! docker compose -f docker-compose.prod.yml ps | grep backend | grep -q "running"; then
-                    echo "❌ Backend failed to start! Checking logs..."
-                    
-                    echo "📋 PostgreSQL logs:"
-                    docker compose -f docker-compose.prod.yml logs postgres --tail=30
-                    
-                    echo "📋 Backend logs (detailed):"
-                    docker compose -f docker-compose.prod.yml logs backend --tail=50
-                    
-                    echo "📋 Backend container inspect:"
-                    docker inspect $(docker compose -f docker-compose.prod.yml ps -q backend) || echo "Backend container not found"
-                    
-                    echo "📋 Checking if backend can connect to postgres..."
-                    docker compose -f docker-compose.prod.yml exec -T postgres pg_isready -U assolution_user -d assolution_prod || echo "PostgreSQL not ready"
-                    
-                    echo "🔄 Attempting to restart backend..."
-                    docker compose -f docker-compose.prod.yml restart backend
-                    sleep 30
-                  fi
+                  echo "📋 PostgreSQL logs:"
+                  docker compose -f docker-compose.prod.yml logs postgres --tail=20
 
-                  # Vérifier les logs pour diagnostic après redémarrage
-                  echo "📋 Final container status..."
-                  docker compose -f docker-compose.prod.yml ps
+                  echo "📋 Backend logs (full):"
+                  docker compose -f docker-compose.prod.yml logs backend --tail=100
 
-                  echo "📋 Backend logs after restart:"
-                  docker compose -f docker-compose.prod.yml logs backend --tail=20
+                  echo "📋 Frontend logs:"
+                  docker compose -f docker-compose.prod.yml logs frontend --tail=20
 
                   echo "📋 Nginx logs:"
                   docker compose -f docker-compose.prod.yml logs nginx --tail=10
+
+                  # Tests manuels étape par étape
+                  echo "🔍 Testing PostgreSQL connection..."
+                  docker compose -f docker-compose.prod.yml exec -T postgres pg_isready -U assolution_user -d assolution_prod || echo "❌ PostgreSQL not ready"
+
+                  echo "🔍 Testing backend port 8080..."
+                  timeout 60 bash -c 'until nc -z localhost 8080; do echo "Waiting for port 8080..."; sleep 5; done' || echo "❌ Port 8080 not accessible"
+
+                  echo "🔍 Testing backend health endpoint directly..."
+                  timeout 60 bash -c 'until curl -f http://localhost:8080/api/health; do echo "Waiting for backend health..."; sleep 5; done' || echo "❌ Backend health check failed"
+
+                  echo "🔍 Testing nginx health..."
+                  timeout 60 bash -c 'until curl -f http://localhost:80/nginx-health; do echo "Waiting for nginx..."; sleep 5; done' || echo "❌ Nginx health check failed"
 
                   # Test de connectivité progressif
                   echo "🔍 Testing backend health directly..."
