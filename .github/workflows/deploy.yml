@@ -16,7 +16,7 @@ jobs:
                 env:
                     POSTGRES_DB: assolution_test
                     POSTGRES_USER: assolution_user
-                    POSTGRES_PASSWORD: test123
+                    POSTGRES_PASSWORD: ${{ secrets.DB_PASSWORD }}
                 options: >-
                     --health-cmd pg_isready
                     --health-interval 10s
@@ -185,7 +185,8 @@ jobs:
                         EMAIL_USER: ${{ secrets.EMAIL_USER }}
                         EMAIL_PASSWORD: ${{ secrets.EMAIL_PASSWORD }}
                       depends_on:
-                        - postgres
+                        postgres:
+                          condition: service_healthy
                       ports:
                         - "8080:8080"
                     
@@ -258,6 +259,13 @@ jobs:
 
             - name: 🔧 Run Cypress Tests
               run: |
+                  # Nettoyer les containers existants
+                  docker compose down --remove-orphans || true
+                  docker system prune -f || true
+
+                  # Vérifier que le port 5432 est libre
+                  sudo lsof -ti:5432 | xargs -r sudo kill -9 || true
+
                   # Démarrer les services en arrière-plan
                   docker compose up -d
 

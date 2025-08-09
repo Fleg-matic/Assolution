@@ -246,6 +246,13 @@ jobs:
                   npm install cypress --save-dev
                   npx cypress verify
 
+                  # Nettoyer les containers existants
+                  docker compose -f docker-compose.prod.yml down --remove-orphans || true
+                  docker system prune -f || true
+
+                  # Vérifier que le port 5432 est libre
+                  sudo lsof -ti:5432 | xargs -r sudo kill -9 || true
+
                   # Démarrer les services en arrière-plan
                   docker compose -f docker-compose.prod.yml up -d
 
