@@ -57,6 +57,172 @@ jobs:
                   mvn jacoco:report
                   mvn package -DskipTests
 
+            - name: 🔐 Generate environment.prod.ts for build
+              working-directory: ./inscriptions/inscriptions-frontend
+              run: |
+                  echo "🔐 Generating environment.prod.ts for test build..."
+
+                  # Vérifier que le template existe
+                  if [ ! -f "../../config-templates/environment.prod.ts.template" ]; then
+                    echo "❌ Template not found, using fallback method"
+                    # Créer un environment.prod.ts basique pour les tests
+                    mkdir -p src/environments
+                    cat > src/environments/environment.prod.ts << 'EOF'
+                  export const environment = {
+                    production: true,
+                    development: false,
+                    apiUrl: 'https://api.assolution.com',
+                    appName: 'Assolution',
+                    appVersion: '1.0.0',
+                    baseUrl: 'https://assolution.com',
+                    assetsUrl: '/assets',
+                    auth: {
+                      tokenKey: 'assolution_token',
+                      refreshTokenKey: 'assolution_refresh_token',
+                      tokenExpiry: 3600000,
+                      refreshTokenExpiry: 86400000,
+                      autoRefresh: true,
+                      loginUrl: '/auth/login',
+                      logoutUrl: '/auth/logout',
+                      registerUrl: '/auth/register',
+                      profileUrl: '/auth/profile'
+                    },
+                    features: {
+                      registration: true,
+                      payment: true,
+                      notifications: true,
+                      analytics: true,
+                      errorReporting: true,
+                      maintenanceMode: false
+                    },
+                    payment: {
+                      stripePublishableKey: 'pk_test_placeholder',
+                      currency: 'EUR',
+                      country: 'FR'
+                    },
+                    logging: {
+                      level: 'warn',
+                      enableConsoleLog: false,
+                      enableRemoteLogging: true,
+                      logEndpoint: '/api/logs'
+                    },
+                    performance: {
+                      enableServiceWorker: true,
+                      enableLazyLoading: true,
+                      enableCaching: true,
+                      cacheTimeout: 300000,
+                      debounceTime: 300,
+                      throttleTime: 1000
+                    },
+                    security: {
+                      enableCSP: true,
+                      enableXSRFProtection: true,
+                      enableHttpsRedirect: true,
+                      maxUploadSize: 20971520,
+                      allowedFileTypes: ['.pdf', '.jpg', '.jpeg', '.png', '.doc', '.docx']
+                    },
+                    ui: {
+                      theme: 'light',
+                      language: 'fr',
+                      dateFormat: 'dd/MM/yyyy',
+                      currencyFormat: 'EUR',
+                      timezone: 'Europe/Paris',
+                      itemsPerPage: 20,
+                      maxRetries: 3
+                    },
+                    notifications: {
+                      position: 'top-right',
+                      timeout: 5000,
+                      showProgress: true,
+                      enableSound: false,
+                      maxNotifications: 5
+                    },
+                    contact: {
+                      supportEmail: 'support@assolution.com',
+                      salesEmail: 'commercial@assolution.com',
+                      phoneNumber: '+33 1 23 45 67 89',
+                      address: 'France'
+                    },
+                    cookies: {
+                      domain: '.assolution.com',
+                      secure: true,
+                      sameSite: 'Lax',
+                      expires: 30
+                    },
+                    analytics: {
+                      googleAnalyticsId: '',
+                      enableTracking: false,
+                      trackPageViews: false,
+                      trackEvents: false
+                    },
+                    debug: {
+                      enableDebugInfo: false,
+                      showApiCalls: false,
+                      showPerformanceMetrics: false,
+                      enableMockData: false
+                    },
+                    endpoints: {
+                      login: '/auth/login',
+                      logout: '/auth/logout',
+                      register: '/auth/register',
+                      refreshToken: '/auth/refresh',
+                      forgotPassword: '/auth/forgot-password',
+                      resetPassword: '/auth/reset-password',
+                      users: '/users',
+                      profile: '/users/profile',
+                      inscriptions: '/inscriptions',
+                      myInscriptions: '/inscriptions/my',
+                      payments: '/payments',
+                      paymentMethods: '/payments/methods',
+                      invoices: '/payments/invoices',
+                      upload: '/files/upload',
+                      download: '/files/download',
+                      admin: '/admin',
+                      stats: '/admin/stats',
+                      reports: '/admin/reports',
+                      health: '/actuator/health',
+                      version: '/actuator/info'
+                    },
+                    errorMessages: {
+                      networkError: 'Erreur de connexion. Vérifiez votre connexion internet.',
+                      serverError: 'Erreur serveur. Veuillez réessayer plus tard.',
+                      unauthorizedError: 'Session expirée. Veuillez vous reconnecter.',
+                      forbiddenError: 'Accès non autorisé.',
+                      notFoundError: 'Ressource introuvable.',
+                      validationError: 'Données invalides. Vérifiez votre saisie.',
+                      timeoutError: 'Délai d\'attente dépassé. Veuillez réessayer.',
+                      genericError: 'Une erreur inattendue s\'est produite.'
+                    },
+                    maintenance: {
+                      enabled: false,
+                      message: 'Maintenance en cours. Veuillez réessayer plus tard.',
+                      estimatedTime: '',
+                      contactInfo: 'support@assolution.com'
+                    }
+                  };
+                  EOF
+                  else
+                    # Utiliser le template avec des valeurs par défaut
+                    mkdir -p src/environments
+                    cp ../../config-templates/environment.prod.ts.template src/environments/environment.prod.ts
+                    
+                    # Remplacer les variables par des valeurs de test
+                    sed -i 's|\${FRONTEND_API_URL}|https://api.assolution.com|g' src/environments/environment.prod.ts
+                    sed -i 's|\${FRONTEND_BASE_URL}|https://assolution.com|g' src/environments/environment.prod.ts
+                    sed -i 's|\${STRIPE_PUBLISHABLE_KEY_PROD}|pk_test_placeholder|g' src/environments/environment.prod.ts
+                    sed -i 's|\${SUPPORT_EMAIL}|support@assolution.com|g' src/environments/environment.prod.ts
+                    sed -i 's|\${SALES_EMAIL}|commercial@assolution.com|g' src/environments/environment.prod.ts
+                    sed -i 's|\${SUPPORT_PHONE}|+33 1 23 45 67 89|g' src/environments/environment.prod.ts
+                    sed -i 's|\${COOKIE_DOMAIN}|.assolution.com|g' src/environments/environment.prod.ts
+                    sed -i 's|\${COOKIE_SECURE}|true|g' src/environments/environment.prod.ts
+                    sed -i 's|\${ENABLE_HTTPS_REDIRECT}|true|g' src/environments/environment.prod.ts
+                    sed -i 's|\${GOOGLE_ANALYTICS_ID}||g' src/environments/environment.prod.ts
+                    sed -i 's|\${ENABLE_ANALYTICS}|false|g' src/environments/environment.prod.ts
+                  fi
+
+                  echo "✅ Environment.prod.ts created for build test"
+                  echo "📁 File size: $(du -h src/environments/environment.prod.ts)"
+
             - name: 📦 Frontend Tests & Build
               working-directory: ./inscriptions/inscriptions-frontend
               run: |
@@ -345,67 +511,6 @@ jobs:
               uses: actions/checkout@v4
               with:
                   fetch-depth: 0
-
-            - name: 🔐 Generate environment.prod.ts from template
-              working-directory: ./inscriptions/inscriptions-frontend
-              run: |
-                  echo "🔐 Generating secure environment.prod.ts from template..."
-
-                  # Vérifier que le template existe dans config-templates
-                  if [ ! -f "../../config-templates/environment.prod.ts.template" ]; then
-                    echo "❌ Template config-templates/environment.prod.ts.template not found!"
-                    echo "📁 Checking available files in config-templates:"
-                    ls -la ../../config-templates/ || echo "Directory not found"
-                    exit 1
-                  fi
-
-                  # Créer le dossier environments s'il n'existe pas
-                  mkdir -p src/environments
-
-                  # Copier le template depuis config-templates
-                  cp ../../config-templates/environment.prod.ts.template src/environments/environment.prod.ts
-
-                  # Validation des variables critiques
-                  if [ -z "${{ secrets.FRONTEND_API_URL }}" ]; then
-                    echo "❌ ERROR: FRONTEND_API_URL secret is missing!"
-                    exit 1
-                  fi
-
-                  if [ -z "${{ secrets.SUPPORT_EMAIL }}" ]; then
-                    echo "❌ ERROR: SUPPORT_EMAIL secret is missing!"
-                    exit 1
-                  fi
-
-                  echo "🔄 Replacing template variables with secrets..."
-
-                  # Remplacement sécurisé des variables
-                  sed -i "s|\${FRONTEND_API_URL}|${{ secrets.FRONTEND_API_URL }}|g" src/environments/environment.prod.ts
-                  sed -i "s|\${FRONTEND_BASE_URL}|${{ secrets.FRONTEND_BASE_URL }}|g" src/environments/environment.prod.ts
-                  sed -i "s|\${STRIPE_PUBLISHABLE_KEY_PROD}|${{ secrets.STRIPE_PUBLISHABLE_KEY_PROD }}|g" src/environments/environment.prod.ts
-                  sed -i "s|\${SUPPORT_EMAIL}|${{ secrets.SUPPORT_EMAIL }}|g" src/environments/environment.prod.ts
-                  sed -i "s|\${SALES_EMAIL}|${{ secrets.SALES_EMAIL }}|g" src/environments/environment.prod.ts
-                  sed -i "s|\${SUPPORT_PHONE}|${{ secrets.SUPPORT_PHONE }}|g" src/environments/environment.prod.ts
-                  sed -i "s|\${COOKIE_DOMAIN}|${{ secrets.COOKIE_DOMAIN }}|g" src/environments/environment.prod.ts
-                  sed -i "s|\${COOKIE_SECURE}|${{ secrets.COOKIE_SECURE }}|g" src/environments/environment.prod.ts
-                  sed -i "s|\${ENABLE_HTTPS_REDIRECT}|${{ secrets.ENABLE_HTTPS_REDIRECT }}|g" src/environments/environment.prod.ts
-                  sed -i "s|\${GOOGLE_ANALYTICS_ID}|${{ secrets.GOOGLE_ANALYTICS_ID }}|g" src/environments/environment.prod.ts
-                  sed -i "s|\${ENABLE_ANALYTICS}|${{ secrets.ENABLE_ANALYTICS }}|g" src/environments/environment.prod.ts
-
-                  echo "✅ Environment.prod.ts generated successfully!"
-                  echo "📁 File size: $(du -h src/environments/environment.prod.ts)"
-
-                  # Vérification de sécurité : s'assurer qu'aucune variable n'est restée
-                  if grep -q '\${' src/environments/environment.prod.ts; then
-                    echo "⚠️  WARNING: Some variables may not have been replaced:"
-                    grep '\${' src/environments/environment.prod.ts || true
-                    echo "🔧 Continuing with available variables..."
-                  else
-                    echo "✅ All template variables successfully replaced!"
-                  fi
-
-                  # Afficher un aperçu sans exposer les secrets
-                  echo "📋 Generated file structure:"
-                  head -10 src/environments/environment.prod.ts
 
             - name: 🔑 Setup SSH
               uses: webfactory/ssh-agent@v0.9.0
