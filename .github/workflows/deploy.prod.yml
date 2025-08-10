@@ -351,14 +351,19 @@ jobs:
               run: |
                   echo "🔐 Generating secure environment.prod.ts from template..."
 
-                  # Vérifier que le template existe
-                  if [ ! -f "./config-templates/environment.prod.ts.template" ]; then
-                    echo "❌ Template environment.prod.ts.template not found!"
+                  # Vérifier que le template existe dans config-templates
+                  if [ ! -f "../../config-templates/environment.prod.ts.template" ]; then
+                    echo "❌ Template config-templates/environment.prod.ts.template not found!"
+                    echo "📁 Checking available files in config-templates:"
+                    ls -la ../../config-templates/ || echo "Directory not found"
                     exit 1
                   fi
 
-                  # Copier le template
-                  cp ./config-templates/environment.prod.ts.template src/environments/environment.prod.ts
+                  # Créer le dossier environments s'il n'existe pas
+                  mkdir -p src/environments
+
+                  # Copier le template depuis config-templates
+                  cp ../../config-templates/environment.prod.ts.template src/environments/environment.prod.ts
 
                   # Validation des variables critiques
                   if [ -z "${{ secrets.FRONTEND_API_URL }}" ]; then
@@ -370,6 +375,8 @@ jobs:
                     echo "❌ ERROR: SUPPORT_EMAIL secret is missing!"
                     exit 1
                   fi
+
+                  echo "🔄 Replacing template variables with secrets..."
 
                   # Remplacement sécurisé des variables
                   sed -i "s|\${FRONTEND_API_URL}|${{ secrets.FRONTEND_API_URL }}|g" src/environments/environment.prod.ts
@@ -391,9 +398,14 @@ jobs:
                   if grep -q '\${' src/environments/environment.prod.ts; then
                     echo "⚠️  WARNING: Some variables may not have been replaced:"
                     grep '\${' src/environments/environment.prod.ts || true
+                    echo "🔧 Continuing with available variables..."
+                  else
+                    echo "✅ All template variables successfully replaced!"
                   fi
 
-                  echo "✅ Fichiers environment.prod.ts créés !"
+                  # Afficher un aperçu sans exposer les secrets
+                  echo "📋 Generated file structure:"
+                  head -10 src/environments/environment.prod.ts
 
             - name: 🔑 Setup SSH
               uses: webfactory/ssh-agent@v0.9.0
