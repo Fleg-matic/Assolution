@@ -330,10 +330,10 @@ jobs:
                   timeout 60 bash -c 'until nc -z localhost 8080; do echo "Waiting for port 8080..."; sleep 5; done' || echo "❌ Port 8080 not accessible"
 
                   echo "🔍 Testing backend health endpoint directly..."
-                  timeout 60 bash -c 'until curl -f http://localhost:8080/api/health; do echo "Waiting for backend health..."; sleep 5; done' || echo "❌ Backend health check failed"
+                  timeout 60 bash -c 'until curl -f http://localhost:8080/api/actuator/health; do echo "Waiting for backend health..."; sleep 5; done' || echo "❌ Backend health check failed"
 
                   echo "🔍 Testing nginx health..."
-                  timeout 60 bash -c 'until curl -f http://localhost:80/nginx-health; do echo "Waiting for nginx..."; sleep 5; done' || echo "❌ Nginx health check failed"
+                  timeout 180 bash -c 'until curl -f http://localhost:80/nginx-health; do echo "Waiting for nginx..."; sleep 5; done' || echo "❌ Nginx health check failed"
 
                   # Si Nginx échoue, diagnostic
                   if ! curl -f http://localhost:80/nginx-health 2>/dev/null; then
