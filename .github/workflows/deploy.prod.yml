@@ -155,7 +155,6 @@ jobs:
                         SPRING_DATASOURCE_USERNAME: assolution_user
                         SPRING_DATASOURCE_PASSWORD: ${{ secrets.DB_PASSWORD }}
                         JAVA_OPTS: "-Xmx512m -Xms256m -XX:+UseG1GC"
-                      # Script simple et fonctionnel pour démarrer l'application
                       entrypoint: >
                         sh -c "
                           echo 'JAR found in /app, starting application...'
@@ -182,14 +181,7 @@ jobs:
                       networks:
                         - assolution-prod-network
                       ports:
-                        - "4200:4200"
-                      # Désactiver le health check frontend aussi pour simplifier
-                      # healthcheck:
-                      #   test: ["CMD-SHELL", "curl -f http://localhost:4200 || exit 1"]
-                      #   interval: 30s
-                      #   timeout: 10s
-                      #   retries: 3
-                      #   start_period: 30s
+                        - "4200:80"  # Le frontend expose le port 80 (nginx interne)
                     
                     nginx:
                       image: nginx:1.25-alpine
@@ -292,37 +284,10 @@ jobs:
                   echo "📋 Backend logs (COMPLETE):"
                   docker compose -f docker-compose.prod.yml logs backend
 
-                  echo "📋 Backend container details:"
-                  docker compose -f docker-compose.prod.yml exec backend ps aux || echo "Cannot access backend container"
+                  echo "📋 Frontend logs:"
+                  docker compose -f docker-compose.prod.yml logs frontend --tail=20
 
-                  echo "📋 Backend environment variables:"
-                  docker compose -f docker-compose.prod.yml exec backend env | grep -E "(DB_|SPRING_|JWT_|STRIPE_)" || echo "Cannot access backend container"
-
-                  echo "📋 Backend network connectivity:"
-                  docker compose -f docker-compose.prod.yml exec backend ping -c 2 postgres || echo "Cannot ping postgres from backend"
-
-                  echo "📋 Check if JAR file exists:"
-                  docker compose -f docker-compose.prod.yml exec backend ls -la /app/ || echo "Cannot access backend filesystem"
-                  docker compose -f docker-compose.prod.yml exec backend find /app -name "*.jar" || echo "No JAR files found"
-
-                  echo "📋 Check build target directory:"
-                  docker compose -f docker-compose.prod.yml exec backend ls -la /build/target/ || echo "Cannot access build target"
-
-                  # Si le backend n'est pas running, essayer de le redémarrer
-                  if ! docker compose -f docker-compose.prod.yml ps | grep backend | grep -q "running"; then
-                    echo "🔄 Backend is not running, attempting restart..."
-                    docker compose -f docker-compose.prod.yml restart backend
-                    echo "⏳ Waiting after restart..."
-                    sleep 60
-                    
-                    echo "📋 Backend logs after restart:"
-                    docker compose -f docker-compose.prod.yml logs backend --tail=50
-                  fi
-
-                  echo "📋 Final container status:"
-                  docker compose -f docker-compose.prod.yml ps
-
-                  # Tests manuels étape par étape
+                  # Tests progressifs
                   echo "🔍 Testing PostgreSQL connection..."
                   docker compose -f docker-compose.prod.yml exec -T postgres pg_isready -U assolution_user -d assolution_prod || echo "❌ PostgreSQL not ready"
 
@@ -332,28 +297,13 @@ jobs:
                   echo "🔍 Testing backend health endpoint directly..."
                   timeout 60 bash -c 'until curl -f http://localhost:8080/api/actuator/health; do echo "Waiting for backend health..."; sleep 5; done' || echo "❌ Backend health check failed"
 
+                  echo "🔍 Testing frontend health..."
+                  timeout 120 bash -c 'until curl -f http://localhost:4200/health; do echo "Waiting for frontend..."; sleep 5; done' || echo "❌ Frontend health check failed"
+
                   echo "🔍 Testing nginx health..."
                   timeout 180 bash -c 'until curl -f http://localhost:80/nginx-health; do echo "Waiting for nginx..."; sleep 5; done' || echo "❌ Nginx health check failed"
 
-                  # Si Nginx échoue, diagnostic
-                  if ! curl -f http://localhost:80/nginx-health 2>/dev/null; then
-                    echo "🔍 Nginx not responding, checking logs..."
-                    echo "📋 Frontend logs:"
-                    docker compose -f docker-compose.prod.yml logs frontend --tail=30
-                    echo "📋 Nginx logs:"
-                    docker compose -f docker-compose.prod.yml logs nginx --tail=30
-                    echo "📋 Container status:"
-                    docker compose -f docker-compose.prod.yml ps
-                  fi
-
-                  # Test de connectivité progressif
-                  echo "🔍 Testing backend health directly..."
-                  timeout 120 bash -c 'until curl -f http://localhost:8080/api/actuator/health; do echo "Waiting for backend..."; sleep 5; done' || echo "Backend direct test failed"
-
-                  echo "🔍 Testing nginx health..."
-                  timeout 180 bash -c 'until curl -f http://localhost:80/nginx-health; do echo "Waiting for nginx..."; sleep 5; done'
-
-                  # Lancer les tests Cypress
+                  # Si tout va bien, lancer Cypress
                   npx cypress run --config-file ./cypress.config.js --spec "./cypress/e2e/**/*.cy.js" --browser chrome --headless
 
                   # Nettoyer
@@ -463,7 +413,7 @@ jobs:
                     sleep 30
                     
                     # Vérifier que le backend est opérationnel
-                    if curl -f http://localhost/api/actuator/health; then
+                    if curl -f http://localhost:8080/api/actuator/health; then
                       echo '✅ Backend is healthy, updating frontend'
                       docker compose -f docker-compose.prod.yml up -d --build --no-deps frontend nginx
                     else

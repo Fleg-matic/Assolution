@@ -208,20 +208,13 @@ jobs:
                         - assolution-network
                       ports:
                         - "4200:4200"
-                      # Désactiver health check temporairement
-                      # healthcheck:
-                      #   test: ["CMD-SHELL", "curl -f http://localhost:4200 || exit 1"]
-                      #   interval: 30s
-                      #   timeout: 10s
-                      #   retries: 3
-                      #   start_period: 30s
                     
                     nginx:
                       image: nginx:1.25-alpine
                       ports:
                         - "80:80"
                       volumes:
-                        - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+                        - ./nginx/nginx-dev.conf:/etc/nginx/nginx.conf:ro
                       depends_on:
                         - frontend
                         - backend
@@ -308,9 +301,15 @@ jobs:
                   echo "📋 Backend logs:"
                   docker compose logs backend --tail=20
 
+                  echo "📋 Frontend logs:"
+                  docker compose logs frontend --tail=20
+
                   # Test de connectivité progressif
                   echo "🔍 Testing backend health directly..."
                   timeout 60 bash -c 'until curl -f http://localhost:8080/api/actuator/health; do echo "Waiting for backend..."; sleep 5; done' || echo "Backend direct test failed"
+
+                  echo "🔍 Testing frontend health..."
+                  timeout 90 bash -c 'until curl -f http://localhost:4200; do echo "Waiting for frontend..."; sleep 5; done' || echo "Frontend test failed"
 
                   echo "🔍 Testing nginx health..."
                   timeout 120 bash -c 'until curl -f http://localhost:80/nginx-health; do echo "Waiting for nginx..."; sleep 5; done' || echo "❌ Nginx health check failed"
@@ -318,8 +317,6 @@ jobs:
                   # Si Nginx échoue, diagnostic
                   if ! curl -f http://localhost:80/nginx-health 2>/dev/null; then
                     echo "🔍 Nginx not responding, checking logs..."
-                    echo "📋 Frontend logs:"
-                    docker compose logs frontend --tail=30
                     echo "📋 Nginx logs:"
                     docker compose logs nginx --tail=30
                     echo "📋 Container status:"

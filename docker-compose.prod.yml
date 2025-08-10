@@ -51,8 +51,15 @@ services:
       DB_PASSWORD: ${DB_PASSWORD}
       JWT_SECRET: ${JWT_SECRET}
       STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY}
+      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET}
       EMAIL_API_KEY: ${EMAIL_API_KEY}
       JAVA_OPTS: "-Xmx512m -Xms256m -XX:+UseG1GC"
+      # Variables nécessaires pour Spring Boot
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${DB_NAME:-assolution_prod}
+      SPRING_DATASOURCE_USERNAME: ${DB_USER:-assolution_user}
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD}
+    ports:
+      - "8080:8080"
     depends_on:
       postgres:
         condition: service_healthy
@@ -61,11 +68,11 @@ services:
     volumes:
       - ./logs:/app/logs
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:8080/api/health || exit 1"]
+      test: ["CMD-SHELL", "curl -f http://localhost:8080/api/actuator/health || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 5
-      start_period: 60s  # Temps avant de commencer les health checks
+      start_period: 60s
     logging:
       driver: "json-file"
       options:
@@ -84,14 +91,16 @@ services:
       dockerfile: Dockerfile.prod
     container_name: assolution-frontend-prod
     restart: always
+    ports:
+      - "4200:80"  # Le frontend expose le port 80 (nginx interne)
     networks:
       - assolution-prod-network
-  healthcheck:
-    test: ["CMD-SHELL", "curl -f http://localhost:4200 || exit 1"]
-    interval: 30s
-    timeout: 10s
-    retries: 3
-    start_period: 30s
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:80/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
     logging:
       driver: "json-file"
       options:
@@ -118,13 +127,13 @@ services:
       - ./nginx/conf.d:/etc/nginx/conf.d:ro
       - ./nginx/ssl:/etc/nginx/ssl:ro
       - ./logs/nginx:/var/log/nginx
-  depends_on:
-    frontend:
-      condition: service_healthy
-    backend:
-      condition: service_healthy
+    depends_on:
+      frontend:
+        condition: service_healthy
+      backend:
+        condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost/health"]
+      test: ["CMD", "curl", "-f", "http://localhost/nginx-health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -155,7 +164,7 @@ services:
           echo '[Health Check] Starting checks at $(date)'
           
           # Check API
-          if curl -f http://nginx/api/health; then
+          if curl -f http://nginx/api/actuator/health; then
             echo '[Health Check] ✅ API is healthy'
           else
             echo '[Health Check] ❌ API is unhealthy'
@@ -169,7 +178,7 @@ services:
           fi
           
           # Check Database
-          if curl -f http://backend:8080/actuator/health/db; then
+          if curl -f http://backend:8080/api/actuator/health/db; then
             echo '[Health Check] ✅ Database is healthy'
           else
             echo '[Health Check] ❌ Database is unhealthy'

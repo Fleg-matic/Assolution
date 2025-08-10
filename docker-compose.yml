@@ -42,6 +42,10 @@ services:
       JWT_SECRET: ${JWT_SECRET}
       STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY}
       EMAIL_API_KEY: ${EMAIL_API_KEY}
+      # Variables pour Spring Boot
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${DB_NAME:-assolution_dev}
+      SPRING_DATASOURCE_USERNAME: ${DB_USER:-assolution_user}
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD}
     depends_on:
       postgres:
         condition: service_healthy
@@ -52,11 +56,11 @@ services:
     volumes:
       - ./logs:/app/logs
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:8080/api/health || exit 1"]
+      test: ["CMD-SHELL", "curl -f http://localhost:8080/api/actuator/health || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 5
-      start_period: 60s  # Temps avant de commencer les health checks
+      start_period: 60s
 
   # Angular Frontend
   frontend:
@@ -97,7 +101,7 @@ services:
     networks:
       - assolution-network
     volumes:
-      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/nginx-dev.conf:/etc/nginx/nginx.conf:ro
       - ./nginx/conf.d:/etc/nginx/conf.d:ro
       - ./nginx/ssl:/etc/nginx/ssl:ro
       - ./logs/nginx:/var/log/nginx
@@ -107,7 +111,7 @@ services:
       backend:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost/health"]
+      test: ["CMD", "curl", "-f", "http://localhost/nginx-health"]
       interval: 30s
       timeout: 10s
       retries: 3
