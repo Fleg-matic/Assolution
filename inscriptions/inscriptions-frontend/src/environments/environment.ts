@@ -1,97 +1,100 @@
 /**
- * Configuration d'environnement pour le développement
- * Application Assolution - Inscriptions Frontend
+ * Configuration de l'environnement de développement pour Assolution - Angular 20.1
  */
-
 export const environment = {
-  // Indicateurs d'environnement
   production: false,
   development: true,
-  staging: false,
 
-  // Informations de l'application
+  // Configuration API
+  apiUrl: 'http://localhost:8080',
+  apiTimeout: 60000, // 60 secondes pour le développement
+
+  // Configuration de l'application
   appName: 'Assolution (Dev)',
   appVersion: '1.0.0-dev',
-  appDescription: "Plateforme d'inscriptions sécurisée - Développement",
 
-  // Configuration API (environnement de développement)
-  apiUrl: 'http://localhost:8080',
-  apiVersion: 'v1',
-  apiTimeout: 30000, // 30 secondes pour le debug
+  // URLs et endpoints
+  baseUrl: 'http://localhost:4200',
+  assetsUrl: '/assets',
 
-  // URLs des services
-  services: {
-    auth: 'http://localhost:8080/v1/auth',
-    inscriptions: 'http://localhost:8080/v1/inscriptions',
-    users: 'http://localhost:8080/v1/users',
-    admin: 'http://localhost:8080/v1/admin',
+  // Configuration d'authentification
+  auth: {
+    tokenKey: 'assolution_dev_token',
+    refreshTokenKey: 'assolution_dev_refresh_token',
+    tokenExpiry: 3600000, // 1 heure
+    refreshTokenExpiry: 86400000, // 24 heures
+    autoRefresh: true,
+    loginUrl: '/auth/login',
+    logoutUrl: '/auth/logout',
+    registerUrl: '/auth/register',
+    profileUrl: '/auth/profile',
   },
 
-  // Configuration sécurité (moins stricte en dev)
-  security: {
-    tokenStorageKey: 'assolution_dev_token',
-    refreshTokenStorageKey: 'assolution_dev_refresh_token',
-    tokenExpirationBuffer: 600000, // 10 minutes en ms
-    maxLoginAttempts: 10, // Plus permissif en dev
-    lockoutDuration: 300000, // 5 minutes en ms
-  },
-
-  // Configuration des cookies
-  cookies: {
-    domain: 'localhost',
-    secure: false, // HTTP autorisé en dev
-    sameSite: 'Lax',
-    httpOnly: false,
-  },
-
-  // Fonctionnalités (toutes activées en dev)
+  // Configuration des fonctionnalités
   features: {
-    enableRegistration: true,
-    enablePasswordReset: true,
-    enableTwoFactorAuth: true,
-    enableFileUpload: true,
-    enableNotifications: true,
-    enableAnalytics: false, // Désactivé en dev
-    enableChatSupport: true,
+    registration: true,
+    payment: false, // Paiement désactivé en dev
+    notifications: true,
+    analytics: false, // Analytics désactivées en dev
+    errorReporting: false,
+    maintenanceMode: false,
   },
 
-  // Configuration des logs (verbose en dev)
+  // Configuration de paiement (Stripe) - Mode test
+  payment: {
+    stripePublishableKey: 'pk_test_51234567890abcdef', // Clé de test
+    currency: 'EUR',
+    country: 'FR',
+  },
+
+  // Configuration des logs et monitoring
   logging: {
-    level: 'debug', // Tous les logs en dev
-    enableConsoleLogging: true,
-    enableRemoteLogging: false, // Pas de logs distants en dev
-    remoteLogUrl: '',
+    level: 'debug', // Développement: tous les logs
+    enableConsoleLog: true,
+    enableRemoteLogging: false,
+    logEndpoint: '/api/logs',
   },
 
-  // Configuration pagination
-  pagination: {
-    defaultPageSize: 10, // Plus petit en dev pour tester
-    maxPageSize: 50,
-    showSizeOptions: [5, 10, 20, 50],
+  // Configuration de performance
+  performance: {
+    enableServiceWorker: false,
+    enableLazyLoading: true,
+    enableCaching: false, // Cache désactivé en dev
+    cacheTimeout: 60000, // 1 minute
+    debounceTime: 300,
+    throttleTime: 1000,
   },
 
-  // Configuration upload
-  upload: {
-    maxFileSize: 52428800, // 50MB en dev (plus permissif)
-    allowedFileTypes: ['.pdf', '.doc', '.docx', '.jpg', '.jpeg', '.png', '.txt', '.csv'],
-    uploadUrl: 'http://localhost:8080/v1/upload',
+  // Configuration de sécurité (plus permissive en dev)
+  security: {
+    enableCSP: false,
+    enableXSRFProtection: false,
+    enableHttpsRedirect: false,
+    maxUploadSize: 52428800, // 50MB en dev
+    allowedFileTypes: ['.pdf', '.jpg', '.jpeg', '.png', '.doc', '.docx', '.txt', '.csv'],
   },
 
-  // Configuration cache (moins agressif en dev)
-  cache: {
-    enableCaching: false, // Désactivé en dev pour voir les changements
-    cacheDuration: 60000, // 1 minute seulement
-    maxCacheSize: 10,
+  // Configuration de l'interface utilisateur
+  ui: {
+    theme: 'light',
+    language: 'fr',
+    dateFormat: 'dd/MM/yyyy',
+    currencyFormat: 'EUR',
+    timezone: 'Europe/Paris',
+    itemsPerPage: 10, // Plus petit en dev pour tester
+    maxRetries: 3,
   },
 
-  // Configuration notifications
+  // Configuration des notifications
   notifications: {
-    enablePushNotifications: false, // Désactivé en dev
-    vapidPublicKey: 'DEV_VAPID_KEY',
-    notificationApiUrl: 'http://localhost:8080/v1/notifications',
+    position: 'top-right',
+    timeout: 5000,
+    showProgress: true,
+    enableSound: false,
+    maxNotifications: 5,
   },
 
-  // Informations de contact (dev)
+  // URLs de contact et support
   contact: {
     supportEmail: 'dev-support@assolution.local',
     salesEmail: 'dev-commercial@assolution.local',
@@ -99,62 +102,84 @@ export const environment = {
     address: 'Environnement de développement',
   },
 
-  // URLs externes (versions de test)
-  external: {
-    privacyPolicyUrl: 'http://localhost:4200/privacy',
-    termsOfServiceUrl: 'http://localhost:4200/terms',
-    helpUrl: 'http://localhost:4200/help',
-    statusPageUrl: 'http://localhost:4200/status',
+  // Configuration des cookies
+  cookies: {
+    domain: 'localhost',
+    secure: false,
+    sameSite: 'Lax',
+    expires: 30, // jours
   },
 
-  // Configuration sociale (désactivée en dev)
-  social: {
-    enableSocialLogin: false,
-    providers: {
-      google: {
-        clientId: 'DEV_GOOGLE_CLIENT_ID',
-        enabled: false,
-      },
-      microsoft: {
-        clientId: 'DEV_MICROSOFT_CLIENT_ID',
-        enabled: false,
-      },
-    },
-  },
-
-  // Métriques et analytics (désactivées en dev)
+  // Analytics et tracking (désactivées en dev)
   analytics: {
-    enableGoogleAnalytics: false,
     googleAnalyticsId: 'DEV_GA_ID',
-    enableHotjar: false,
-    hotjarId: 'DEV_HOTJAR_ID',
+    enableTracking: false,
+    trackPageViews: false,
+    trackEvents: false,
   },
 
-  // Configuration monitoring (dev)
-  monitoring: {
-    enableErrorTracking: false,
-    sentryDsn: '',
-    enablePerformanceMonitoring: false,
+  // Configuration de développement (activées)
+  debug: {
+    enableDebugInfo: true,
+    showApiCalls: true,
+    showPerformanceMetrics: true,
+    enableMockData: true,
   },
 
-  // Timeouts (plus longs en dev pour le debug)
-  timeouts: {
-    httpRequestTimeout: 30000,
-    fileUploadTimeout: 60000,
-    longRunningOperationTimeout: 120000,
+  // Endpoints API spécifiques
+  endpoints: {
+    // Authentification
+    login: '/auth/login',
+    logout: '/auth/logout',
+    register: '/auth/register',
+    refreshToken: '/auth/refresh',
+    forgotPassword: '/auth/forgot-password',
+    resetPassword: '/auth/reset-password',
+
+    // Utilisateurs
+    users: '/users',
+    profile: '/users/profile',
+
+    // Inscriptions
+    inscriptions: '/inscriptions',
+    myInscriptions: '/inscriptions/my',
+
+    // Paiements
+    payments: '/payments',
+    paymentMethods: '/payments/methods',
+    invoices: '/payments/invoices',
+
+    // Fichiers
+    upload: '/files/upload',
+    download: '/files/download',
+
+    // Administration
+    admin: '/admin',
+    stats: '/admin/stats',
+    reports: '/admin/reports',
+
+    // Système
+    health: '/actuator/health',
+    version: '/actuator/info',
   },
 
-  // Configuration internationalisation
-  i18n: {
-    defaultLanguage: 'fr',
-    availableLanguages: ['fr', 'en'],
-    fallbackLanguage: 'fr',
+  // Messages d'erreur personnalisés
+  errorMessages: {
+    networkError: 'Erreur de connexion. Vérifiez votre connexion internet.',
+    serverError: 'Erreur serveur. Veuillez réessayer plus tard.',
+    unauthorizedError: 'Session expirée. Veuillez vous reconnecter.',
+    forbiddenError: 'Accès non autorisé.',
+    notFoundError: 'Ressource introuvable.',
+    validationError: 'Données invalides. Vérifiez votre saisie.',
+    timeoutError: "Délai d'attente dépassé. Veuillez réessayer.",
+    genericError: "Une erreur inattendue s'est produite.",
   },
 
-  // Configuration PWA (désactivée en dev)
-  pwa: {
+  // Configuration de maintenance
+  maintenance: {
     enabled: false,
-    updateCheckInterval: 60000, // 1 minute en dev
-    promptUserToUpdate: false,
+    message: 'Maintenance en cours. Veuillez réessayer plus tard.',
+    estimatedTime: '',
+    contactInfo: 'dev-support@assolution.local',
   },
 };
