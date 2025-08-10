@@ -352,13 +352,13 @@ jobs:
                   echo "🔐 Generating secure environment.prod.ts from template..."
 
                   # Vérifier que le template existe
-                  if [ ! -f "src/environments/environment.prod.ts.template" ]; then
+                  if [ ! -f "./config-templates/environment.prod.ts.template" ]; then
                     echo "❌ Template environment.prod.ts.template not found!"
                     exit 1
                   fi
 
                   # Copier le template
-                  cp src/environments/environment.prod.ts.template src/environments/environment.prod.ts
+                  cp ./config-templates/environment.prod.ts.template src/environments/environment.prod.ts
 
                   # Validation des variables critiques
                   if [ -z "${{ secrets.FRONTEND_API_URL }}" ]; then
