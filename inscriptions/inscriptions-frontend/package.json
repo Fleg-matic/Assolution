@@ -11,29 +11,87 @@
   },
   "scripts": {
     "ng": "ng",
-    "start": "ng serve",
-    "start:dev": "ng serve --configuration=development --host=0.0.0.0 --port=4200",
-    "build": "ng build",
-    "build:prod": "ng build --configuration=production",
+    "start": "ng serve --configuration=development --host=0.0.0.0 --port=4200",
+    "start:dev": "ng serve --configuration=development --host=0.0.0.0 --port=4200 --open",
+    "start:prod": "ng serve --configuration=production --host=0.0.0.0 --port=4200",
+    "build": "ng build --configuration=production",
+    "build:prod": "ng build --configuration=production --output-hashing=all",
     "build:dev": "ng build --configuration=development",
+    "build:stats": "ng build --configuration=production --stats-json",
     "watch": "ng build --watch --configuration=development",
     "test": "ng test --no-watch --browsers=ChromeHeadless",
+    "test:watch": "ng test --watch --browsers=Chrome",
     "test:ci": "ng test --no-watch --no-progress --browsers=ChromeHeadless --code-coverage",
     "test:coverage": "ng test --code-coverage --no-watch --browsers=ChromeHeadless",
-    "e2e": "ng e2e",
+    "e2e": "cypress open",
+    "e2e:headless": "cypress run",
+    "e2e:ci": "cypress run --browser chrome --headless",
     "lint": "ng lint",
     "lint:fix": "ng lint --fix",
+    "format": "prettier --write \"src/**/*.{ts,html,scss,json}\"",
+    "format:check": "prettier --check \"src/**/*.{ts,html,scss,json}\"",
     "analyze": "ng build --stats-json && npx webpack-bundle-analyzer dist/inscriptions-frontend/stats.json",
-    "serve:prod": "ng build --configuration=production && npx http-server dist/inscriptions-frontend -p 4200"
+    "serve:prod": "ng build --configuration=production && npx http-server dist/inscriptions-frontend -p 4200 -c-1",
+    "clean": "rimraf dist coverage .angular/cache",
+    "clean:all": "rimraf dist coverage .angular node_modules package-lock.json",
+    "audit": "npm audit --audit-level=moderate",
+    "audit:fix": "npm audit fix",
+    "update": "ng update",
+    "update:check": "ng update --dry-run",
+    "docker:build": "docker build -f Dockerfile.prod -t assolution-frontend:latest .",
+    "docker:dev": "docker build -f Dockerfile -t assolution-frontend:dev .",
+    "prebuild": "npm run clean",
+    "postbuild": "echo 'Build completed successfully!'",
+    "pretest": "echo 'Running tests...'",
+    "prelint": "echo 'Running linter...'",
+    "version:patch": "npm version patch",
+    "version:minor": "npm version minor",
+    "version:major": "npm version major"
   },
   "prettier": {
+    "semi": true,
+    "trailingComma": "es5",
+    "singleQuote": true,
+    "printWidth": 100,
+    "tabWidth": 2,
+    "useTabs": false,
+    "bracketSpacing": true,
+    "bracketSameLine": false,
+    "arrowParens": "avoid",
+    "endOfLine": "lf",
     "overrides": [
       {
         "files": "*.html",
         "options": {
-          "parser": "angular"
+          "parser": "angular",
+          "printWidth": 120
+        }
+      },
+      {
+        "files": "*.scss",
+        "options": {
+          "printWidth": 120,
+          "singleQuote": false
         }
       }
+    ]
+  },
+  "husky": {
+    "hooks": {
+      "pre-commit": "lint-staged",
+      "pre-push": "npm run test:ci && npm run lint"
+    }
+  },
+  "lint-staged": {
+    "src/**/*.{ts,html}": [
+      "ng lint --fix",
+      "prettier --write"
+    ],
+    "src/**/*.{scss,css}": [
+      "prettier --write"
+    ],
+    "src/**/*.{json,md}": [
+      "prettier --write"
     ]
   },
   "private": true,
@@ -86,6 +144,7 @@
     "cypress": "^13.17.0",
     "eslint": "^8.57.1",
     "http-server": "^14.1.1",
+    "husky": "^8.0.3",
     "jasmine-core": "~5.9.0",
     "karma": "~6.4.4",
     "karma-chrome-launcher": "~3.2.0",
@@ -93,6 +152,9 @@
     "karma-jasmine": "~5.1.0",
     "karma-jasmine-html-reporter": "~2.1.0",
     "karma-sonarqube-unit-reporter": "^0.0.23",
+    "lint-staged": "^14.0.1",
+    "prettier": "^3.1.0",
+    "rimraf": "^5.0.5",
     "typescript": "~5.8.0",
     "webpack-bundle-analyzer": "^4.10.2"
   },
