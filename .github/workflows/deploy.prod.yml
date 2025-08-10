@@ -346,33 +346,54 @@ jobs:
               with:
                   fetch-depth: 0
 
-            - name: 🔧 Generate production config files
+            - name: 🔐 Generate environment.prod.ts from template
+              working-directory: ./inscriptions/inscriptions-frontend
               run: |
-                  echo "📝 Création du fichier environment.prod.ts..."
-                  cat > inscriptions/inscriptions-frontend/src/environments/environment.prod.ts << 'EOF'
-                  export const environment = {
-                    production: true,
-                    apiUrl: '${{ secrets.FRONTEND_API_URL }}',
-                    baseUrl: '${{ secrets.FRONTEND_BASE_URL }}',
-                    stripePublishableKey: '${{ secrets.STRIPE_PUBLISHABLE_KEY_PROD }}',
-                    enableHttpsRedirect: ${{ secrets.ENABLE_HTTPS_REDIRECT }},
-                    
-                    // Contact Information
-                    supportEmail: '${{ secrets.SUPPORT_EMAIL }}',
-                    salesEmail: '${{ secrets.SALES_EMAIL }}',
-                    supportPhone: '${{ secrets.SUPPORT_PHONE }}',
-                    
-                    // Cookie Configuration
-                    cookieDomain: '${{ secrets.COOKIE_DOMAIN }}',
-                    cookieSecure: ${{ secrets.COOKIE_SECURE }},
-                    
-                    // Analytics
-                    googleAnalyticsId: '${{ secrets.GOOGLE_ANALYTICS_ID }}',
-                    enableAnalytics: ${{ secrets.ENABLE_ANALYTICS }}
-                  };
-                  EOF
+                  echo "🔐 Generating secure environment.prod.ts from template..."
 
-                  echo "✅ Fichiers de production créés !"
+                  # Vérifier que le template existe
+                  if [ ! -f "src/environments/environment.prod.ts.template" ]; then
+                    echo "❌ Template environment.prod.ts.template not found!"
+                    exit 1
+                  fi
+
+                  # Copier le template
+                  cp src/environments/environment.prod.ts.template src/environments/environment.prod.ts
+
+                  # Validation des variables critiques
+                  if [ -z "${{ secrets.FRONTEND_API_URL }}" ]; then
+                    echo "❌ ERROR: FRONTEND_API_URL secret is missing!"
+                    exit 1
+                  fi
+
+                  if [ -z "${{ secrets.SUPPORT_EMAIL }}" ]; then
+                    echo "❌ ERROR: SUPPORT_EMAIL secret is missing!"
+                    exit 1
+                  fi
+
+                  # Remplacement sécurisé des variables
+                  sed -i "s|\${FRONTEND_API_URL}|${{ secrets.FRONTEND_API_URL }}|g" src/environments/environment.prod.ts
+                  sed -i "s|\${FRONTEND_BASE_URL}|${{ secrets.FRONTEND_BASE_URL }}|g" src/environments/environment.prod.ts
+                  sed -i "s|\${STRIPE_PUBLISHABLE_KEY_PROD}|${{ secrets.STRIPE_PUBLISHABLE_KEY_PROD }}|g" src/environments/environment.prod.ts
+                  sed -i "s|\${SUPPORT_EMAIL}|${{ secrets.SUPPORT_EMAIL }}|g" src/environments/environment.prod.ts
+                  sed -i "s|\${SALES_EMAIL}|${{ secrets.SALES_EMAIL }}|g" src/environments/environment.prod.ts
+                  sed -i "s|\${SUPPORT_PHONE}|${{ secrets.SUPPORT_PHONE }}|g" src/environments/environment.prod.ts
+                  sed -i "s|\${COOKIE_DOMAIN}|${{ secrets.COOKIE_DOMAIN }}|g" src/environments/environment.prod.ts
+                  sed -i "s|\${COOKIE_SECURE}|${{ secrets.COOKIE_SECURE }}|g" src/environments/environment.prod.ts
+                  sed -i "s|\${ENABLE_HTTPS_REDIRECT}|${{ secrets.ENABLE_HTTPS_REDIRECT }}|g" src/environments/environment.prod.ts
+                  sed -i "s|\${GOOGLE_ANALYTICS_ID}|${{ secrets.GOOGLE_ANALYTICS_ID }}|g" src/environments/environment.prod.ts
+                  sed -i "s|\${ENABLE_ANALYTICS}|${{ secrets.ENABLE_ANALYTICS }}|g" src/environments/environment.prod.ts
+
+                  echo "✅ Environment.prod.ts generated successfully!"
+                  echo "📁 File size: $(du -h src/environments/environment.prod.ts)"
+
+                  # Vérification de sécurité : s'assurer qu'aucune variable n'est restée
+                  if grep -q '\${' src/environments/environment.prod.ts; then
+                    echo "⚠️  WARNING: Some variables may not have been replaced:"
+                    grep '\${' src/environments/environment.prod.ts || true
+                  fi
+
+                  echo "✅ Fichiers environment.prod.ts créés !"
 
             - name: 🔑 Setup SSH
               uses: webfactory/ssh-agent@v0.9.0
