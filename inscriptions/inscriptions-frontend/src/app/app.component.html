@@ -1,0 +1,178 @@
+<div class="app-container">
+  <!-- Barre de progression globale -->
+  <mat-progress-bar *ngIf="isLoading" mode="indeterminate" class="global-progress-bar"> </mat-progress-bar>
+
+  <!-- Toolbar principale -->
+  <mat-toolbar color="primary" class="app-toolbar">
+    <button mat-icon-button *ngIf="!isLargeScreen" (click)="toggleSidenav()" aria-label="Menu">
+      <mat-icon>menu</mat-icon>
+    </button>
+
+    <span class="app-title">{{ appName }}</span>
+
+    <div class="toolbar-spacer"></div>
+
+    <!-- Navigation desktop -->
+    <nav class="desktop-nav" *ngIf="isLargeScreen">
+      <a mat-button routerLink="/home" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">
+        Accueil
+      </a>
+      <a mat-button routerLink="/inscriptions" routerLinkActive="active"> Inscriptions </a>
+      <a mat-button *ngIf="isAuthenticated" routerLink="/profile" routerLinkActive="active"> Profil </a>
+      <a mat-button *ngIf="isAdmin" routerLink="/admin" routerLinkActive="active"> Administration </a>
+    </nav>
+
+    <!-- Menu utilisateur -->
+    <button mat-icon-button [matMenuTriggerFor]="userMenu" *ngIf="isAuthenticated" aria-label="Menu utilisateur">
+      <mat-icon>account_circle</mat-icon>
+    </button>
+
+    <!-- Boutons d'authentification -->
+    <ng-container *ngIf="!isAuthenticated">
+      <a mat-button routerLink="/auth/login" class="login-btn"> Connexion </a>
+      <a mat-raised-button routerLink="/auth/register" class="register-btn"> Inscription </a>
+    </ng-container>
+  </mat-toolbar>
+
+  <!-- Menu utilisateur dropdown -->
+  <mat-menu #userMenu="matMenu">
+    <button mat-menu-item routerLink="/profile">
+      <mat-icon>person</mat-icon>
+      <span>Mon profil</span>
+    </button>
+    <button mat-menu-item routerLink="/inscriptions/my">
+      <mat-icon>list</mat-icon>
+      <span>Mes inscriptions</span>
+    </button>
+    <mat-divider></mat-divider>
+    <button mat-menu-item (click)="logout()">
+      <mat-icon>logout</mat-icon>
+      <span>Déconnexion</span>
+    </button>
+  </mat-menu>
+
+  <!-- Sidenav pour mobile -->
+  <mat-sidenav-container class="sidenav-container">
+    <mat-sidenav #sidenav mode="over" class="app-sidenav" [opened]="false">
+      <mat-nav-list>
+        <h3 matSubheader>Navigation</h3>
+
+        <a mat-list-item routerLink="/home" (click)="closeSidenav()" [class.active]="isActiveRoute('/home')">
+          <mat-icon matListItemIcon>home</mat-icon>
+          <span matListItemTitle>Accueil</span>
+        </a>
+
+        <a
+          mat-list-item
+          routerLink="/inscriptions"
+          (click)="closeSidenav()"
+          [class.active]="isActiveRoute('/inscriptions')"
+        >
+          <mat-icon matListItemIcon>assignment</mat-icon>
+          <span matListItemTitle>Inscriptions</span>
+        </a>
+
+        <ng-container *ngIf="isAuthenticated">
+          <mat-divider></mat-divider>
+
+          <h3 matSubheader>Mon compte</h3>
+
+          <a mat-list-item routerLink="/profile" (click)="closeSidenav()" [class.active]="isActiveRoute('/profile')">
+            <mat-icon matListItemIcon>person</mat-icon>
+            <span matListItemTitle>Mon profil</span>
+          </a>
+
+          <a
+            mat-list-item
+            routerLink="/inscriptions/my"
+            (click)="closeSidenav()"
+            [class.active]="isActiveRoute('/inscriptions/my')"
+          >
+            <mat-icon matListItemIcon>list</mat-icon>
+            <span matListItemTitle>Mes inscriptions</span>
+          </a>
+
+          <ng-container *ngIf="isAdmin">
+            <mat-divider></mat-divider>
+            <h3 matSubheader>Administration</h3>
+
+            <a mat-list-item routerLink="/admin" (click)="closeSidenav()" [class.active]="isActiveRoute('/admin')">
+              <mat-icon matListItemIcon>admin_panel_settings</mat-icon>
+              <span matListItemTitle>Administration</span>
+            </a>
+          </ng-container>
+
+          <mat-divider></mat-divider>
+
+          <button mat-list-item (click)="logout(); closeSidenav()">
+            <mat-icon matListItemIcon>logout</mat-icon>
+            <span matListItemTitle>Déconnexion</span>
+          </button>
+        </ng-container>
+
+        <ng-container *ngIf="!isAuthenticated">
+          <mat-divider></mat-divider>
+
+          <a mat-list-item routerLink="/auth/login" (click)="closeSidenav()">
+            <mat-icon matListItemIcon>login</mat-icon>
+            <span matListItemTitle>Connexion</span>
+          </a>
+
+          <a mat-list-item routerLink="/auth/register" (click)="closeSidenav()">
+            <mat-icon matListItemIcon>person_add</mat-icon>
+            <span matListItemTitle>Inscription</span>
+          </a>
+        </ng-container>
+      </mat-nav-list>
+    </mat-sidenav>
+
+    <!-- Contenu principal -->
+    <mat-sidenav-content class="main-content">
+      <div class="content-wrapper">
+        <!-- Outlet pour les routes -->
+        <router-outlet></router-outlet>
+      </div>
+
+      <!-- Footer -->
+      <footer class="app-footer" *ngIf="showFooter">
+        <div class="footer-content">
+          <div class="footer-section">
+            <h4>{{ appName }}</h4>
+            <p>Plateforme d'inscriptions sécurisée</p>
+          </div>
+
+          <div class="footer-section">
+            <h4>Contact</h4>
+            <p>
+              <mat-icon>email</mat-icon>
+              {{ contactEmail }}
+            </p>
+            <p>
+              <mat-icon>phone</mat-icon>
+              {{ contactPhone }}
+            </p>
+          </div>
+
+          <div class="footer-section">
+            <h4>Liens utiles</h4>
+            <a routerLink="/legal/privacy">Politique de confidentialité</a>
+            <a routerLink="/legal/terms">Conditions d'utilisation</a>
+            <a routerLink="/help">Aide</a>
+          </div>
+        </div>
+
+        <div class="footer-bottom">
+          <p>&copy; {{ currentYear }} {{ appName }}. Tous droits réservés.</p>
+          <p *ngIf="environment.development" class="dev-info">
+            Version {{ appVersion }} - Environnement de développement
+          </p>
+        </div>
+      </footer>
+    </mat-sidenav-content>
+  </mat-sidenav-container>
+
+  <!-- Spinner global -->
+  <ngx-spinner bdColor="rgba(0, 0, 0, 0.8)" size="medium" color="#007bff" type="ball-scale-multiple">
+    <p style="color: white; margin-top: 20px">Chargement...</p>
+  </ngx-spinner>
+</div>
