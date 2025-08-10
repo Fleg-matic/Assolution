@@ -310,10 +310,21 @@ jobs:
 
                   # Test de connectivité progressif
                   echo "🔍 Testing backend health directly..."
-                  timeout 60 bash -c 'until curl -f http://localhost:8080/api/actuator/health; do echo "Waiting for backend..."; sleep 5; done' || echo "Backend direct test failed"
+                  timeout 60 bash -c 'until curl -f http://localhost:8080/api/health; do echo "Waiting for backend..."; sleep 5; done' || echo "Backend direct test failed"
 
                   echo "🔍 Testing nginx health..."
                   timeout 120 bash -c 'until curl -f http://localhost:80/nginx-health; do echo "Waiting for nginx..."; sleep 5; done'
+
+                  # Si Nginx échoue, diagnostic
+                  if ! curl -f http://localhost:80/nginx-health 2>/dev/null; then
+                    echo "🔍 Nginx not responding, checking logs..."
+                    echo "📋 Frontend logs:"
+                    docker compose logs frontend --tail=30
+                    echo "📋 Nginx logs:"
+                    docker compose logs nginx --tail=30
+                    echo "📋 Container status:"
+                    docker compose ps
+                  fi
 
                   # Lancer les tests Cypress
                   npx cypress run --config-file ./cypress.config.js --spec "./cypress/e2e/**/*.cy.js" --browser chrome --headless
@@ -404,7 +415,7 @@ jobs:
 
                   # Test de l'API
                   for i in {1..10}; do
-                    if curl -f http://${{ secrets.SSH_HOST }}/api/actuator/health then
+                    if curl -f http://${{ secrets.SSH_HOST }}/api/actuator/health; then
                       echo "✅ API is healthy"
                       break
                     fi
