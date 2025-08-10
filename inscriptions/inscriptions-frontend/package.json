@@ -1,4 +1,14 @@
 {
+  "name": "inscriptions-frontend",
+  "version": "1.0.0",
+  "description": "Frontend Angular pour la plateforme d'inscriptions Assolution",
+  "author": "Assolution Team",
+  "license": "MIT",
+  "homepage": "http://192.168.1.22",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Fleg-matic/Assolution.git"
+  },
   "scripts": {
     "ng": "ng",
     "start": "ng serve --configuration=development --host=0.0.0.0 --port=4200",
@@ -38,5 +48,125 @@
     "version:patch": "npm version patch",
     "version:minor": "npm version minor",
     "version:major": "npm version major"
-  }
+  },
+  "prettier": {
+    "semi": true,
+    "trailingComma": "es5",
+    "singleQuote": true,
+    "printWidth": 100,
+    "tabWidth": 2,
+    "useTabs": false,
+    "bracketSpacing": true,
+    "bracketSameLine": false,
+    "arrowParens": "avoid",
+    "endOfLine": "lf",
+    "overrides": [
+      {
+        "files": "*.html",
+        "options": {
+          "parser": "angular",
+          "printWidth": 120
+        }
+      },
+      {
+        "files": "*.scss",
+        "options": {
+          "printWidth": 120,
+          "singleQuote": false
+        }
+      }
+    ]
+  },
+  "husky": {
+    "hooks": {
+      "pre-commit": "lint-staged",
+      "pre-push": "npm run test:ci && npm run lint"
+    }
+  },
+  "lint-staged": {
+    "src/**/*.{ts,html}": [
+      "ng lint --fix",
+      "prettier --write"
+    ],
+    "src/**/*.{scss,css}": [
+      "prettier --write"
+    ],
+    "src/**/*.{json,md}": [
+      "prettier --write"
+    ]
+  },
+  "private": true,
+  "dependencies": {
+    "@angular/animations": "^20.1.6",
+    "@angular/cdk": "^20.1.5",
+    "@angular/common": "^20.1.6",
+    "@angular/compiler": "^20.1.6",
+    "@angular/core": "^20.1.6",
+    "@angular/forms": "^20.1.6",
+    "@angular/material": "^20.1.5",
+    "@angular/platform-browser": "^20.1.6",
+    "@angular/platform-browser-dynamic": "^20.1.6",
+    "@angular/router": "^20.1.6",
+    "@angular/service-worker": "^20.1.6",
+    "@capacitor/cli": "^7.4.2",
+    "@capacitor/core": "^7.4.2",
+    "@ionic/angular": "^8.7.2",
+    "@ionic/core": "^8.7.2",
+    "@stripe/stripe-js": "^2.4.0",
+    "chart.js": "^4.5.0",
+    "file-saver": "^2.0.5",
+    "lodash": "^4.17.21",
+    "moment": "^2.30.1",
+    "ng2-charts": "^6.0.1",
+    "ngx-pagination": "^6.0.3",
+    "ngx-spinner": "^17.0.0",
+    "ngx-toastr": "^18.0.0",
+    "rxjs": "~7.8.2",
+    "serve": "^14.2.4",
+    "tslib": "^2.8.1",
+    "zone.js": "~0.15.1"
+  },
+  "devDependencies": {
+    "@angular-devkit/build-angular": "^20.1.5",
+    "@angular-eslint/builder": "^18.4.3",
+    "@angular-eslint/eslint-plugin": "^18.4.3",
+    "@angular-eslint/eslint-plugin-template": "^18.4.3",
+    "@angular-eslint/schematics": "^18.4.3",
+    "@angular-eslint/template-parser": "^18.4.3",
+    "@angular/cli": "^20.1.5",
+    "@angular/compiler-cli": "^20.1.6",
+    "@cypress/schematic": "^2.5.2",
+    "@types/file-saver": "^2.0.7",
+    "@types/jasmine": "~5.1.8",
+    "@types/lodash": "^4.17.20",
+    "@types/node": "^18.19.121",
+    "@typescript-eslint/eslint-plugin": "^8.0.0",
+    "@typescript-eslint/parser": "^8.0.0",
+    "cypress": "^13.17.0",
+    "eslint": "^9.0.0",
+    "http-server": "^14.1.1",
+    "husky": "^8.0.3",
+    "jasmine-core": "~5.9.0",
+    "karma": "~6.4.4",
+    "karma-chrome-launcher": "~3.2.0",
+    "karma-coverage": "~2.2.1",
+    "karma-jasmine": "~5.1.0",
+    "karma-jasmine-html-reporter": "~2.1.0",
+    "karma-sonarqube-unit-reporter": "^0.0.23",
+    "lint-staged": "^14.0.1",
+    "prettier": "^3.1.0",
+    "rimraf": "^5.0.5",
+    "typescript": "~5.8.0",
+    "webpack-bundle-analyzer": "^4.10.2"
+  },
+  "engines": {
+    "node": ">=22.0.0",
+    "npm": ">=10.0.0"
+  },
+  "browserslist": [
+    "Chrome >= 115",
+    "Firefox >= 110",
+    "Safari >= 16",
+    "Edge >= 115"
+  ]
 }
