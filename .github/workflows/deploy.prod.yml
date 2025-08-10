@@ -330,14 +330,14 @@ jobs:
                   timeout 60 bash -c 'until nc -z localhost 8080; do echo "Waiting for port 8080..."; sleep 5; done' || echo "❌ Port 8080 not accessible"
 
                   echo "🔍 Testing backend health endpoint directly..."
-                  timeout 60 bash -c 'until curl -f http://localhost:8080/api/health; do echo "Waiting for backend health..."; sleep 5; done' || echo "❌ Backend health check failed"
+                  timeout 60 bash -c 'until curl -f http://localhost:8080/api/actuator/health; do echo "Waiting for backend health..."; sleep 5; done' || echo "❌ Backend health check failed"
 
                   echo "🔍 Testing nginx health..."
                   timeout 60 bash -c 'until curl -f http://localhost:80/nginx-health; do echo "Waiting for nginx..."; sleep 5; done' || echo "❌ Nginx health check failed"
 
                   # Test de connectivité progressif
                   echo "🔍 Testing backend health directly..."
-                  timeout 120 bash -c 'until curl -f http://localhost:8080/api/health; do echo "Waiting for backend..."; sleep 5; done' || echo "Backend direct test failed"
+                  timeout 120 bash -c 'until curl -f http://localhost:8080/api/actuator/health; do echo "Waiting for backend..."; sleep 5; done' || echo "Backend direct test failed"
 
                   echo "🔍 Testing nginx health..."
                   timeout 180 bash -c 'until curl -f http://localhost:80/nginx-health; do echo "Waiting for nginx..."; sleep 5; done'
@@ -452,7 +452,7 @@ jobs:
                     sleep 30
                     
                     # Vérifier que le backend est opérationnel
-                    if curl -f http://localhost/api/health; then
+                    if curl -f http://localhost/api/actuator/health; then
                       echo '✅ Backend is healthy, updating frontend'
                       docker compose -f docker-compose.prod.yml up -d --build --no-deps frontend nginx
                     else
@@ -477,7 +477,7 @@ jobs:
 
                   # Test API Health
                   for i in {1..15}; do
-                    if curl -f http://${{ secrets.SSH_HOST }}/api/health; then
+                    if curl -f http://${{ secrets.SSH_HOST }}/api/actuator/health; then
                       echo "✅ API health check passed"
                       break
                     fi
@@ -498,7 +498,7 @@ jobs:
                   fi
 
                   # Test Database Connection
-                  if curl -f http://${{ secrets.SSH_HOST }}/api/health/db; then
+                  if curl -f http://${{ secrets.SSH_HOST }}/api/actuator/health/db; then
                     echo "✅ Database connection is healthy"
                   else
                     echo "❌ Database connection check failed"
@@ -529,7 +529,7 @@ jobs:
                   echo "🎉 Production deployment successful!"
                   echo "🔗 Production URL: http://${{ secrets.SSH_HOST }}"
                   echo "🔗 API URL: http://${{ secrets.SSH_HOST }}/api"
-                  echo "📊 Health Check: http://${{ secrets.SSH_HOST }}/api/health"
+                  echo "📊 Health Check: http://${{ secrets.SSH_HOST }}/api/actuator/health"
                   echo "🔒 Security scan completed"
                   echo "💾 Database backup created"
 

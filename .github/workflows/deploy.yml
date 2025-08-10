@@ -310,7 +310,7 @@ jobs:
 
                   # Test de connectivité progressif
                   echo "🔍 Testing backend health directly..."
-                  timeout 60 bash -c 'until curl -f http://localhost:8080/api/health; do echo "Waiting for backend..."; sleep 5; done' || echo "Backend direct test failed"
+                  timeout 60 bash -c 'until curl -f http://localhost:8080/api/actuator/health; do echo "Waiting for backend..."; sleep 5; done' || echo "Backend direct test failed"
 
                   echo "🔍 Testing nginx health..."
                   timeout 120 bash -c 'until curl -f http://localhost:80/nginx-health; do echo "Waiting for nginx..."; sleep 5; done'
@@ -404,7 +404,7 @@ jobs:
 
                   # Test de l'API
                   for i in {1..10}; do
-                    if curl -f http://${{ secrets.SSH_HOST }}/api/health; then
+                    if curl -f http://${{ secrets.SSH_HOST }}/api/actuator/health then
                       echo "✅ API is healthy"
                       break
                     fi
@@ -426,7 +426,7 @@ jobs:
                   echo "🎉 Deployment successful!"
                   echo "🔗 Application URL: http://${{ secrets.SSH_HOST }}"
                   echo "🔗 API URL: http://${{ secrets.SSH_HOST }}/api"
-                  echo "📊 Health Check: http://${{ secrets.SSH_HOST }}/api/health"
+                  echo "📊 Health Check: http://${{ secrets.SSH_HOST }}/api/actuator/health"
 
             - name: 🚨 Rollback on Failure
               if: failure()
