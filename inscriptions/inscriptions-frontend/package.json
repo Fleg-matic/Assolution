@@ -139,10 +139,10 @@
     "@types/jasmine": "~5.1.8",
     "@types/lodash": "^4.17.20",
     "@types/node": "^18.19.121",
-    "@typescript-eslint/eslint-plugin": "^7.18.0",
-    "@typescript-eslint/parser": "^7.18.0",
+    "@typescript-eslint/eslint-plugin": "^8.0.0",
+    "@typescript-eslint/parser": "^8.0.0",
     "cypress": "^13.17.0",
-    "eslint": "^8.57.1",
+    "eslint": "^9.0.0",
     "http-server": "^14.1.1",
     "husky": "^8.0.3",
     "jasmine-core": "~5.9.0",
@@ -162,17 +162,10 @@
     "node": ">=22.0.0",
     "npm": ">=10.0.0"
   },
-  "browserslist": {
-    "production": [
-      "> 1.5%",
-      "last 2 major versions",
-      "not dead",
-      "Chrome >= 115",
-      "not samsung < 16"
-    ],
-    "development": [
-      "last 1 chrome version",
-      "last 1 firefox version"
-    ]
-  }
+  "browserslist": [
+    "Chrome >= 115",
+    "Firefox >= 110",
+    "Safari >= 16",
+    "Edge >= 115"
+  ]
 }

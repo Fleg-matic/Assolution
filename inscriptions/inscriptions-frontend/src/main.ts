@@ -4,7 +4,7 @@
  */
 
 import { bootstrapApplication } from '@angular/platform-browser';
-import { provideRouter } from '@angular/router';
+import { provideRouter, Routes } from '@angular/router';
 import { provideHttpClient, withInterceptors } from '@angular/common/http';
 import { provideAnimations } from '@angular/platform-browser/animations';
 import { importProvidersFrom } from '@angular/core';
@@ -49,7 +49,7 @@ import { NgxPaginationModule } from 'ngx-pagination';
 import { ToastrModule } from 'ngx-toastr';
 
 // Chart.js
-import { NgChartsModule } from 'ng2-charts';
+import { provideCharts, withDefaultRegisterables } from 'ng2-charts';
 
 // Reactive Forms
 import { ReactiveFormsModule, FormsModule } from '@angular/forms';
@@ -58,48 +58,39 @@ import { ReactiveFormsModule, FormsModule } from '@angular/forms';
 import { AppComponent } from './app/app.component';
 
 // Configuration des routes (à créer)
-const routes = [
+const routes: Routes = [
   { path: '', redirectTo: '/home', pathMatch: 'full' },
   {
     path: 'home',
-    loadComponent: () =>
-      import('./app/pages/home/home.component').then((m) => m.HomeComponent),
+    loadComponent: () => import('./app/pages/home/home.component').then(m => m.HomeComponent),
   },
   {
     path: 'auth',
-    loadChildren: () =>
-      import('./app/features/auth/auth.routes').then((m) => m.authRoutes),
+    loadChildren: () => import('./app/features/auth/auth.routes').then(m => m.authRoutes),
   },
   {
     path: 'inscriptions',
     loadChildren: () =>
-      import('./app/features/inscriptions/inscriptions.routes').then(
-        (m) => m.inscriptionsRoutes
-      ),
+      import('./app/features/inscriptions/inscriptions.routes').then(m => m.inscriptionsRoutes),
   },
   {
     path: 'profile',
     loadComponent: () =>
-      import('./app/pages/profile/profile.component').then(
-        (m) => m.ProfileComponent
-      ),
+      import('./app/pages/profile/profile.component').then(m => m.ProfileComponent),
   },
   {
     path: 'admin',
-    loadChildren: () =>
-      import('./app/features/admin/admin.routes').then((m) => m.adminRoutes),
+    loadChildren: () => import('./app/features/admin/admin.routes').then(m => m.adminRoutes),
   },
   {
     path: '**',
     loadComponent: () =>
-      import('./app/pages/not-found/not-found.component').then(
-        (m) => m.NotFoundComponent
-      ),
+      import('./app/pages/not-found/not-found.component').then(m => m.NotFoundComponent),
   },
 ];
 
 // Intercepteurs HTTP (à créer)
-const httpInterceptors = [
+const httpInterceptors: any[] = [
   // authInterceptor,
   // errorInterceptor,
   // loadingInterceptor
@@ -165,15 +156,14 @@ bootstrapApplication(AppComponent, {
         progressBar: true,
         closeButton: true,
         newestOnTop: true,
-      }),
-      NgChartsModule
+      })
     ),
 
+    // Chart.js Provider
+    provideCharts(withDefaultRegisterables()),
+
     // Providers Angular
-    provideRouter(routes, {
-      enableTracing: false, // Mettre à true pour debug
-      onSameUrlNavigation: 'reload',
-    }),
+    provideRouter(routes),
 
     provideHttpClient(withInterceptors(httpInterceptors)),
 
@@ -188,7 +178,7 @@ bootstrapApplication(AppComponent, {
     // LocalStorageService,
     // ConfigService
   ],
-}).catch((err) => {
+}).catch(err => {
   console.error("❌ Erreur lors du bootstrap de l'application:", err);
 
   // Affichage d'un message d'erreur à l'utilisateur
