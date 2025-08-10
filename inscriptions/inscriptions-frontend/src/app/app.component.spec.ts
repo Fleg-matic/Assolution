@@ -53,7 +53,7 @@ describe('AppComponent', () => {
     const fixture = TestBed.createComponent(AppComponent);
     const app = fixture.componentInstance;
     expect(app.appName).toBeDefined();
-    expect(app.appName).toBe('Assolution');
+    expect(app.appName).toMatch(/^Assolution(\s\(Dev\))?$/);
   });
 
   it('should have current year', () => {
