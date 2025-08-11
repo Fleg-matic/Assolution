@@ -52,12 +52,12 @@ services:
       STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET}
       EMAIL_API_KEY: ${EMAIL_API_KEY}
       JAVA_OPTS: "-Xmx512m -Xms256m -XX:+UseG1GC"
-      # Variables nécessaires pour Spring Boot
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${DB_NAME:-assolution_prod}
       SPRING_DATASOURCE_USERNAME: ${DB_USER:-assolution_user}
       SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD}
-    ports:
-      - "8080:8080"
+    # ❌ SUPPRIMÉ : exposition directe du port
+    # ports:
+    #   - "8080:8080"
     depends_on:
       postgres:
         condition: service_healthy
@@ -82,15 +82,16 @@ services:
           memory: 768M
           cpus: '1.0'
 
-  # Angular Frontend - Production
+  # Angular Frontend - Production (conteneur interne)
   frontend:
     build:
       context: ./inscriptions/inscriptions-frontend
       dockerfile: Dockerfile.prod
     container_name: assolution-frontend-prod
     restart: always
-    ports:
-      - "4200:80"  # Le frontend expose le port 80 (nginx interne)
+    # ❌ SUPPRIMÉ : exposition directe du port
+    # ports:
+    #   - "4200:80"
     networks:
       - assolution-prod-network
     healthcheck:
@@ -110,14 +111,14 @@ services:
           memory: 128M
           cpus: '0.2'
 
-  # Nginx Reverse Proxy - Production
+  # Nginx Reverse Proxy - Production (POINT D'ENTRÉE UNIQUE)
   nginx:
     image: nginx:1.25-alpine
     container_name: assolution-nginx-prod
     restart: always
     ports:
-      - "80:80"
-      - "443:443"
+      - "80:80"      # ✅ SEUL point d'entrée HTTP
+      - "443:443"    # ✅ Prêt pour HTTPS
     networks:
       - assolution-prod-network
     volumes:
@@ -125,6 +126,8 @@ services:
       - ./nginx/conf.d:/etc/nginx/conf.d:ro
       - ./nginx/ssl:/etc/nginx/ssl:ro
       - ./logs/nginx:/var/log/nginx
+      # ✅ Création du dossier cache
+      - nginx_cache:/var/cache/nginx
     depends_on:
       frontend:
         condition: service_healthy
@@ -154,3 +157,6 @@ networks:
 volumes:
   postgres_prod_data:
     name: assolution-postgres-prod-data
+  # ✅ Volume pour le cache Nginx
+  nginx_cache:
+    name: assolution-nginx-cache
