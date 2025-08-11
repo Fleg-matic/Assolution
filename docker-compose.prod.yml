@@ -89,9 +89,6 @@ services:
       dockerfile: Dockerfile.prod
     container_name: assolution-frontend-prod
     restart: always
-    # ❌ SUPPRIMÉ : exposition directe du port
-    # ports:
-    #   - "4200:80"
     networks:
       - assolution-prod-network
     healthcheck:
