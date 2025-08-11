@@ -64,238 +64,48 @@ RUN mkdir -p /build/final_dist && \
     echo "📊 Final dist size:" && \
     du -sh /build/final_dist/
 
-# Stage de production avec Nginx optimisé
-FROM nginx:1.25-alpine AS production
+# ===============================================
+# Stage de production - JUSTE LES FICHIERS STATIQUES
+# ===============================================
+FROM alpine:3.19 AS production
 
 # Métadonnées
 LABEL maintainer="Assolution Team"
 LABEL version="1.0"
-LABEL description="Assolution Frontend - Production"
+LABEL description="Assolution Frontend - Static Files Only"
 
-# Installation des outils essentiels
-RUN apk add --no-cache curl bash tini && \
+# Installation d'outils minimaux pour health check
+RUN apk add --no-cache curl bash && \
     rm -rf /var/cache/apk/*
 
-# Suppression de la configuration Nginx par défaut
-RUN rm -rf /usr/share/nginx/html/* && \
-    rm -f /etc/nginx/conf.d/default.conf
+# Création du répertoire pour les fichiers statiques
+RUN mkdir -p /app/dist
 
-# Copie des fichiers buildés depuis le stage builder
-COPY --from=builder /build/final_dist/ /usr/share/nginx/html/
+# Copie SEULEMENT des fichiers buildés (pas de serveur web)
+COPY --from=builder /build/final_dist/ /app/dist/
 
-# Configuration Nginx optimisée pour Angular SPA
-RUN cat > /etc/nginx/conf.d/default.conf << 'EOF'
-server {
-    listen 80;
-    server_name localhost;
-    root /usr/share/nginx/html;
-    index index.html;
+# Script de vérification simple
+RUN echo '#!/bin/bash' > /app/verify-files.sh && \
+    echo 'set -euo pipefail' >> /app/verify-files.sh && \
+    echo 'echo "📁 Assolution Frontend - Static Files Ready"' >> /app/verify-files.sh && \
+    echo 'if [ ! -f "/app/dist/index.html" ]; then' >> /app/verify-files.sh && \
+    echo '    echo "❌ CRITICAL: No index.html found!"' >> /app/verify-files.sh && \
+    echo '    ls -la /app/dist/' >> /app/verify-files.sh && \
+    echo '    exit 1' >> /app/verify-files.sh && \
+    echo 'fi' >> /app/verify-files.sh && \
+    echo 'echo "✅ Static files ready: $(ls -1 /app/dist | wc -l) files"' >> /app/verify-files.sh && \
+    echo 'echo "📊 Total size: $(du -sh /app/dist | cut -f1)"' >> /app/verify-files.sh && \
+    echo 'echo "🎯 Files will be served by external Nginx reverse proxy"' >> /app/verify-files.sh && \
+    echo 'echo "⏳ Keeping container alive..."' >> /app/verify-files.sh && \
+    echo 'tail -f /dev/null' >> /app/verify-files.sh && \
+    chmod +x /app/verify-files.sh
 
-    # Logs avec format détaillé
-    access_log /var/log/nginx/access.log combined;
-    error_log /var/log/nginx/error.log warn;
+# Health check simple (vérifie juste que les fichiers existent)
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+  CMD [ -f /app/dist/index.html ] || exit 1
 
-    # Health check endpoint
-    location /health {
-        access_log off;
-        return 200 "frontend healthy\n";
-        add_header Content-Type text/plain;
-        add_header Cache-Control "no-cache";
-    }
+# Pas de port exposé (les fichiers sont servis par le reverse proxy)
+WORKDIR /app/dist
 
-    # Assets statiques avec cache agressif
-    location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot|map|webp)$ {
-        expires 1y;
-        add_header Cache-Control "public, immutable";
-        add_header Vary "Accept-Encoding";
-        try_files $uri =404;
-        
-        # Compression spécifique pour assets
-        gzip_static on;
-    }
-
-    # Fichiers de manifeste et service workers
-    location ~* \.(webmanifest|manifest\.json|sw\.js)$ {
-        expires 0;
-        add_header Cache-Control "no-cache, no-store, must-revalidate";
-        add_header Pragma "no-cache";
-    }
-
-    # Gestion SPA - toutes les routes vers index.html
-    location / {
-        try_files $uri $uri/ /index.html;
-        
-        # Pas de cache pour index.html
-        add_header Cache-Control "no-cache, no-store, must-revalidate";
-        add_header Pragma "no-cache";
-        add_header Expires "0";
-        
-        # Headers de sécurité
-        add_header X-Frame-Options "SAMEORIGIN" always;
-        add_header X-Content-Type-Options "nosniff" always;
-        add_header X-XSS-Protection "1; mode=block" always;
-        add_header Referrer-Policy "strict-origin-when-cross-origin" always;
-    }
-
-    # Gestion des erreurs
-    error_page 404 /index.html;
-    error_page 500 502 503 504 /50x.html;
-    
-    location = /50x.html {
-        root /usr/share/nginx/html;
-        internal;
-    }
-
-    # Compression globale
-    gzip on;
-    gzip_vary on;
-    gzip_min_length 1024;
-    gzip_comp_level 6;
-    gzip_types
-        text/plain
-        text/css
-        text/xml
-        text/javascript
-        application/javascript
-        application/json
-        application/xml+rss
-        application/atom+xml
-        image/svg+xml;
-
-    # Sécurité supplémentaire
-    location ~ /\. {
-        deny all;
-        access_log off;
-        log_not_found off;
-    }
-    
-    location ~ ~$ {
-        deny all;
-        access_log off;
-        log_not_found off;
-    }
-}
-EOF
-
-# Configuration Nginx principale optimisée
-RUN cat > /etc/nginx/nginx.conf << 'EOF'
-user nginx;
-worker_processes auto;
-error_log /var/log/nginx/error.log warn;
-pid /var/run/nginx.pid;
-
-# Optimisations système
-worker_rlimit_nofile 65535;
-
-events {
-    worker_connections 1024;
-    use epoll;
-    multi_accept on;
-}
-
-http {
-    include /etc/nginx/mime.types;
-    default_type application/octet-stream;
-
-    # Format de logs
-    log_format main '$remote_addr - $remote_user [$time_local] "$request" '
-                    '$status $body_bytes_sent "$http_referer" '
-                    '"$http_user_agent" "$http_x_forwarded_for"';
-
-    # Optimisations de performance
-    sendfile on;
-    tcp_nopush on;
-    tcp_nodelay on;
-    keepalive_timeout 65;
-    types_hash_max_size 2048;
-    server_tokens off;
-
-    # Buffers optimisés
-    client_body_buffer_size 16K;
-    client_header_buffer_size 1k;
-    client_max_body_size 8m;
-    large_client_header_buffers 2 1k;
-
-    # Timeouts
-    client_body_timeout 12;
-    client_header_timeout 12;
-    keepalive_requests 100;
-    send_timeout 10;
-
-    # Compression par défaut
-    gzip on;
-    gzip_vary on;
-    gzip_min_length 1024;
-    gzip_comp_level 6;
-    gzip_types text/plain text/css application/json application/javascript text/xml application/xml;
-
-    include /etc/nginx/conf.d/*.conf;
-}
-EOF
-
-# Script de démarrage avec vérifications robustes
-RUN cat > /app/start-frontend.sh << 'EOF'
-#!/bin/bash
-set -euo pipefail
-
-echo "🎨 Starting Assolution Frontend (Production)"
-echo "🌐 Nginx Version: $(nginx -v 2>&1)"
-echo "📁 Serving files from: /usr/share/nginx/html"
-echo "🏷️  Container: $(hostname)"
-
-# Vérification CRITIQUE des fichiers
-if [ ! -f "/usr/share/nginx/html/index.html" ]; then
-    echo "❌ CRITICAL: No index.html found!"
-    echo "📋 Contents of /usr/share/nginx/html:"
-    ls -la /usr/share/nginx/html/ || echo "Directory not accessible"
-    echo "📋 Looking for HTML files:"
-    find /usr/share/nginx/html -name "*.html" -type f || echo "No HTML files found"
-    exit 1
-fi
-
-echo "✅ index.html found!"
-echo "📊 Available files (first 10):"
-ls -la /usr/share/nginx/html/ | head -10
-
-# Vérification de la taille des fichiers critiques
-INDEX_SIZE=$(stat -c%s "/usr/share/nginx/html/index.html" 2>/dev/null || echo "0")
-if [ "$INDEX_SIZE" -lt 100 ]; then
-    echo "⚠️  WARNING: index.html seems too small ($INDEX_SIZE bytes)"
-fi
-
-# Test de la configuration Nginx
-echo "🔧 Testing Nginx configuration..."
-nginx -t || {
-    echo "❌ Nginx configuration test failed!"
-    echo "📋 Configuration files:"
-    find /etc/nginx -name "*.conf" -exec echo "--- {} ---" \; -exec cat {} \;
-    exit 1
-}
-
-echo "✅ Nginx configuration OK"
-
-# Information sur l'environnement
-echo "📊 System Information:"
-echo "   - OS: $(cat /etc/os-release | grep PRETTY_NAME | cut -d'"' -f2)"
-echo "   - Memory: $(free -m | awk 'NR==2{printf "%.1fMB (%.1f%% used)", $3,$3*100/$2 }')"
-echo "   - Disk: $(df -h /usr/share/nginx/html | awk 'NR==2{print $3"/"$2" ("$5" used)"}')"
-
-echo "🚀 Starting Nginx..."
-exec nginx -g 'daemon off;'
-EOF
-
-RUN chmod +x /app/start-frontend.sh
-
-# Création des répertoires nécessaires
-RUN mkdir -p /var/cache/nginx /var/log/nginx && \
-    chown -R nginx:nginx /var/cache/nginx /var/log/nginx
-
-# Health check optimisé
-HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
-  CMD curl -f http://localhost:80/health || exit 1
-
-# Exposition du port
-EXPOSE 80
-
-# Utilisation de tini pour un signal handling propre
-ENTRYPOINT ["tini", "--", "/app/start-frontend.sh"]
+# Point d'entrée simple
+ENTRYPOINT ["/app/verify-files.sh"]
