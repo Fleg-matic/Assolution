@@ -80,32 +80,32 @@ services:
           memory: 768M
           cpus: '1.0'
 
-  # Frontend - Conteneur de fichiers statiques SEULEMENT
-  frontend:
+  # ✅ FRONTEND - Init Container (build et copie les fichiers)
+  frontend-builder:
     build:
       context: ./inscriptions/inscriptions-frontend
       dockerfile: Dockerfile.prod
-    container_name: assolution-frontend-prod
-    restart: always
-    # Pas de port exposé - fichiers servis par Nginx reverse proxy
+    container_name: assolution-frontend-builder
+    restart: "no"  # Run once only
+    volumes:
+      # ✅ Volume partagé pour copier les fichiers vers Nginx
+      - frontend_static_files:/tmp/dist
+    command: >
+      sh -c "
+        echo '📁 Copying built files to shared volume...' &&
+        cp -r /app/dist/* /tmp/dist/ &&
+        echo '✅ Files copied successfully!' &&
+        ls -la /tmp/dist/ &&
+        echo '📊 Total files: $$(ls -1 /tmp/dist | wc -l)' &&
+        echo '🎯 Frontend build completed'
+      "
     networks:
       - assolution-prod-network
-    healthcheck:
-      test: ["CMD-SHELL", "[ -f /app/dist/index.html ] || exit 1"]
-      interval: 30s
-      timeout: 5s
-      retries: 3
-      start_period: 10s
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "5m"
-        max-file: "3"
     deploy:
       resources:
         limits:
-          memory: 64M    # ← Beaucoup moins de RAM (juste des fichiers)
-          cpus: '0.1'
+          memory: 128M
+          cpus: '0.2'
 
   # Nginx Reverse Proxy - SEUL POINT D'ENTRÉE
   nginx:
@@ -122,15 +122,11 @@ services:
       - ./nginx/conf.d:/etc/nginx/conf.d:ro
       - ./nginx/ssl:/etc/nginx/ssl:ro
       - ./logs/nginx:/var/log/nginx
-      # ✅ MONTAGE DES FICHIERS STATIQUES depuis le container frontend
-      - type: volume
-        source: frontend_static_files
-        target: /usr/share/nginx/html
-        volume:
-          nocopy: false
+      # ✅ MONTAGE DES FICHIERS STATIQUES depuis le volume partagé
+      - frontend_static_files:/usr/share/nginx/html:ro
     depends_on:
-      frontend:
-        condition: service_healthy
+      frontend-builder:
+        condition: service_completed_successfully
       backend:
         condition: service_healthy
     healthcheck:
