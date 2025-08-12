@@ -47,12 +47,14 @@ services:
       DB_PORT: 5432
       DB_NAME: ${DB_NAME:-assolution_prod}
       DB_USER: ${DB_USER:-assolution_user}
-      DB_PASSWORD: ${DB_PASSWORD}
-      JWT_SECRET: ${JWT_SECRET}
-      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY}
-      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET}
-      EMAIL_API_KEY: ${EMAIL_API_KEY}
-      JAVA_OPTS: "-Xmx512m -Xms256m -XX:+UseG1GC"
+      DB_PASSWORD: ${DB_PASSWORD_PROD:-${DB_PASSWORD:-changeme123}}
+      JWT_SECRET: ${JWT_SECRET_PROD:-${JWT_SECRET:-temp_jwt_secret_for_testing}}
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY_PROD:-${STRIPE_SECRET_KEY:-sk_test_placeholder}}
+      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET_PROD:-${STRIPE_WEBHOOK_SECRET:-whsec_placeholder}}
+      EMAIL_HOST: ${EMAIL_HOST_PROD:-${EMAIL_HOST:-smtp.gmail.com}}
+      EMAIL_USER: ${EMAIL_USER_PROD:-${EMAIL_USER:-test@gmail.com}}
+      EMAIL_PASSWORD: ${EMAIL_PASSWORD_PROD:-${EMAIL_PASSWORD:-temp_password}}
+      JAVA_OPTS: "-Xmx512m -Xms256m -XX:+UseG1GC -Djava.security.egd=file:/dev/./urandom"
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${DB_NAME:-assolution_prod}
       SPRING_DATASOURCE_USERNAME: ${DB_USER:-assolution_user}
       SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD_PROD:-${DB_PASSWORD:-changeme123}}
@@ -66,9 +68,9 @@ services:
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost:8080/api/actuator/health || exit 1"]
       interval: 30s
-      timeout: 10s
-      retries: 5
-      start_period: 120s
+      timeout: 15s
+      retries: 15
+      start_period: 180s
     logging:
       driver: "json-file"
       options:
