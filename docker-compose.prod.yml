@@ -55,7 +55,6 @@ services:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${DB_NAME:-assolution_prod}
       SPRING_DATASOURCE_USERNAME: ${DB_USER:-assolution_user}
       SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD}
-    # Pas de port exposé - tout passe par Nginx
     depends_on:
       postgres:
         condition: service_healthy
@@ -80,29 +79,29 @@ services:
           memory: 768M
           cpus: '1.0'
 
-  # ✅ FRONTEND - Init Container (build et copie les fichiers)
+  # ✅ FRONTEND - Build Container avec tous les secrets GitHub Actions
   frontend-builder:
     build:
-      context: .  # ✅ Contexte à la racine pour accéder à config-templates/
+      context: .  # ✅ Contexte à la racine du mono-repo
       dockerfile: ./inscriptions/inscriptions-frontend/Dockerfile.prod
     container_name: assolution-frontend-builder
     restart: "no"  # Run once only
     volumes:
-      # ✅ Volume partagé pour copier les fichiers vers Nginx
       - frontend_static_files:/tmp/dist
     command: >
       sh -c "
         echo '📁 Copying built files to shared volume...' &&
         cp -r /app/dist/* /tmp/dist/ &&
-        echo '✅ Files copied successfully!' &&
+        echo '✅ Files copied to volume successfully!' &&
         ls -la /tmp/dist/ &&
         echo '📊 Total files: $(ls -1 /tmp/dist | wc -l)' &&
         echo '🎯 Frontend build completed'
       "
     environment:
-      # ✅ Variables d'environnement pour envsubst
+      # ✅ Toutes vos variables d'environnement GitHub Actions
       - FRONTEND_API_URL=${FRONTEND_API_URL:-/api}
       - FRONTEND_BASE_URL=${FRONTEND_BASE_URL:-}
+      - BACKEND_URL_PROD=${BACKEND_URL_PROD:-}
       - STRIPE_PUBLISHABLE_KEY_PROD=${STRIPE_PUBLISHABLE_KEY_PROD:-pk_test_placeholder}
       - ENABLE_ANALYTICS=${ENABLE_ANALYTICS:-false}
       - ENABLE_HTTPS_REDIRECT=${ENABLE_HTTPS_REDIRECT:-false}
@@ -112,22 +111,28 @@ services:
       - COOKIE_DOMAIN=${COOKIE_DOMAIN:-localhost}
       - COOKIE_SECURE=${COOKIE_SECURE:-false}
       - GOOGLE_ANALYTICS_ID=${GOOGLE_ANALYTICS_ID:-}
+      - CORS_ALLOWED_ORIGINS=${CORS_ALLOWED_ORIGINS:-}
+      - EMAIL_BASE_URL=${EMAIL_BASE_URL:-}
+      # Variables Cypress (pour les tests dans le build si nécessaire)
+      - CYPRESS_API_URL=${CYPRESS_API_URL:-}
+      - CYPRESS_BASE_URL=${CYPRESS_BASE_URL:-}
+      - CYPRESS_ENVIRONMENT=${CYPRESS_ENVIRONMENT:-production}
     networks:
       - assolution-prod-network
     deploy:
       resources:
         limits:
-          memory: 128M
-          cpus: '0.2'
+          memory: 256M  # ✅ Augmenté pour gérer le build Angular
+          cpus: '0.5'   # ✅ Augmenté pour accélérer le build
 
-  # Nginx Reverse Proxy - SEUL POINT D'ENTRÉE
+  # Nginx Reverse Proxy - Point d'entrée unique
   nginx:
     image: nginx:1.25-alpine
     container_name: assolution-nginx-prod
     restart: always
     ports:
-      - "80:80"      # ✅ SEUL point d'entrée
-      - "443:443"    # ✅ Prêt pour HTTPS
+      - "80:80"
+      - "443:443"
     networks:
       - assolution-prod-network
     volumes:
@@ -135,7 +140,6 @@ services:
       - ./nginx/conf.d:/etc/nginx/conf.d:ro
       - ./nginx/ssl:/etc/nginx/ssl:ro
       - ./logs/nginx:/var/log/nginx
-      # ✅ MONTAGE DES FICHIERS STATIQUES depuis le volume partagé
       - frontend_static_files:/usr/share/nginx/html:ro
     depends_on:
       frontend-builder:
@@ -166,6 +170,5 @@ networks:
 volumes:
   postgres_prod_data:
     name: assolution-postgres-prod-data
-  # ✅ Volume partagé pour les fichiers statiques
   frontend_static_files:
     name: assolution-frontend-static

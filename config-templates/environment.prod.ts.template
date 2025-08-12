@@ -1,33 +1,36 @@
 /**
- * Configuration de l'environnement de production pour Assolution - Angular 20.1 - TEMPLATE
+ * Configuration de l'environnement de production pour Assolution - Angular 20.1
+ * ⚠️  FICHIER GÉNÉRÉ AUTOMATIQUEMENT - NE PAS MODIFIER MANUELLEMENT
+ * Variables injectées via GitHub Actions secrets au moment du build
  */
+
 export const environment = {
   production: true,
   development: false,
 
   // Configuration API
-  apiUrl: "${FRONTEND_API_URL}",
-  apiTimeout: 30000, // 30 secondes
+  apiUrl: '${FRONTEND_API_URL}',
+  apiTimeout: 30000,
 
   // Configuration de l'application
-  appName: "Assolution",
-  appVersion: "1.0.0",
+  appName: 'Assolution',
+  appVersion: '1.0.0',
 
   // URLs et endpoints
-  baseUrl: "${FRONTEND_BASE_URL}",
-  assetsUrl: "/assets",
+  baseUrl: '${FRONTEND_BASE_URL}',
+  assetsUrl: '/assets',
 
   // Configuration d'authentification
   auth: {
-    tokenKey: "assolution_token",
-    refreshTokenKey: "assolution_refresh_token",
-    tokenExpiry: 3600000, // 1 heure
-    refreshTokenExpiry: 86400000, // 24 heures
+    tokenKey: 'assolution_token',
+    refreshTokenKey: 'assolution_refresh_token',
+    tokenExpiry: 3600000,
+    refreshTokenExpiry: 86400000,
     autoRefresh: true,
-    loginUrl: "/auth/login",
-    logoutUrl: "/auth/logout",
-    registerUrl: "/auth/register",
-    profileUrl: "/auth/profile",
+    loginUrl: '/auth/login',
+    logoutUrl: '/auth/logout',
+    registerUrl: '/auth/register',
+    profileUrl: '/auth/profile',
   },
 
   // Configuration des fonctionnalités
@@ -35,24 +38,24 @@ export const environment = {
     registration: true,
     payment: true,
     notifications: true,
-    analytics: true,
+    analytics: ${ENABLE_ANALYTICS},
     errorReporting: true,
     maintenanceMode: false,
   },
 
   // Configuration de paiement (Stripe)
   payment: {
-    stripePublishableKey: "${STRIPE_PUBLISHABLE_KEY_PROD}",
-    currency: "EUR",
-    country: "FR",
+    stripePublishableKey: '${STRIPE_PUBLISHABLE_KEY_PROD}',
+    currency: 'EUR',
+    country: 'FR',
   },
 
   // Configuration des logs et monitoring
   logging: {
-    level: "warn", // Production: warn, error uniquement
+    level: 'warn',
     enableConsoleLog: false,
     enableRemoteLogging: true,
-    logEndpoint: "/api/logs",
+    logEndpoint: '/api/logs',
   },
 
   // Configuration de performance
@@ -60,7 +63,7 @@ export const environment = {
     enableServiceWorker: true,
     enableLazyLoading: true,
     enableCaching: true,
-    cacheTimeout: 300000, // 5 minutes
+    cacheTimeout: 300000,
     debounceTime: 300,
     throttleTime: 1000,
   },
@@ -70,24 +73,24 @@ export const environment = {
     enableCSP: true,
     enableXSRFProtection: true,
     enableHttpsRedirect: ${ENABLE_HTTPS_REDIRECT},
-    maxUploadSize: 20971520, // 20MB
-    allowedFileTypes: [".pdf", ".jpg", ".jpeg", ".png", ".doc", ".docx"],
+    maxUploadSize: 20971520,
+    allowedFileTypes: ['.pdf', '.jpg', '.jpeg', '.png', '.doc', '.docx'],
   },
 
   // Configuration de l'interface utilisateur
   ui: {
-    theme: "light",
-    language: "fr",
-    dateFormat: "dd/MM/yyyy",
-    currencyFormat: "EUR",
-    timezone: "Europe/Paris",
+    theme: 'light',
+    language: 'fr',
+    dateFormat: 'dd/MM/yyyy',
+    currencyFormat: 'EUR',
+    timezone: 'Europe/Paris',
     itemsPerPage: 20,
     maxRetries: 3,
   },
 
   // Configuration des notifications
   notifications: {
-    position: "top-right",
+    position: 'top-right',
     timeout: 5000,
     showProgress: true,
     enableSound: false,
@@ -96,23 +99,23 @@ export const environment = {
 
   // URLs de contact et support
   contact: {
-    supportEmail: "${SUPPORT_EMAIL}",
-    salesEmail: "${SALES_EMAIL}",
-    phoneNumber: "${SUPPORT_PHONE}",
-    address: "France",
+    supportEmail: '${SUPPORT_EMAIL}',
+    salesEmail: '${SALES_EMAIL}',
+    phoneNumber: '${SUPPORT_PHONE}',
+    address: 'France',
   },
 
   // Configuration des cookies
   cookies: {
-    domain: "${COOKIE_DOMAIN}",
+    domain: '${COOKIE_DOMAIN}',
     secure: ${COOKIE_SECURE},
-    sameSite: "Lax",
-    expires: 30, // jours
+    sameSite: 'Lax',
+    expires: 30,
   },
 
-  // Analytics et tracking (à configurer selon besoins)
+  // Analytics et tracking
   analytics: {
-    googleAnalyticsId: "${GOOGLE_ANALYTICS_ID}",
+    googleAnalyticsId: '${GOOGLE_ANALYTICS_ID}',
     enableTracking: ${ENABLE_ANALYTICS},
     trackPageViews: ${ENABLE_ANALYTICS},
     trackEvents: ${ENABLE_ANALYTICS},
@@ -128,49 +131,36 @@ export const environment = {
 
   // Endpoints API spécifiques
   endpoints: {
-    // Authentification
-    login: "/auth/login",
-    logout: "/auth/logout",
-    register: "/auth/register",
-    refreshToken: "/auth/refresh",
-    forgotPassword: "/auth/forgot-password",
-    resetPassword: "/auth/reset-password",
-
-    // Utilisateurs
-    users: "/users",
-    profile: "/users/profile",
-
-    // Inscriptions
-    inscriptions: "/inscriptions",
-    myInscriptions: "/inscriptions/my",
-
-    // Paiements
-    payments: "/payments",
-    paymentMethods: "/payments/methods",
-    invoices: "/payments/invoices",
-
-    // Fichiers
-    upload: "/files/upload",
-    download: "/files/download",
-
-    // Administration
-    admin: "/admin",
-    stats: "/admin/stats",
-    reports: "/admin/reports",
-
-    // Système
-    health: "/actuator/health",
-    version: "/actuator/info",
+    login: '/auth/login',
+    logout: '/auth/logout',
+    register: '/auth/register',
+    refreshToken: '/auth/refresh',
+    forgotPassword: '/auth/forgot-password',
+    resetPassword: '/auth/reset-password',
+    users: '/users',
+    profile: '/users/profile',
+    inscriptions: '/inscriptions',
+    myInscriptions: '/inscriptions/my',
+    payments: '/payments',
+    paymentMethods: '/payments/methods',
+    invoices: '/payments/invoices',
+    upload: '/files/upload',
+    download: '/files/download',
+    admin: '/admin',
+    stats: '/admin/stats',
+    reports: '/admin/reports',
+    health: '/actuator/health',
+    version: '/actuator/info',
   },
 
   // Messages d'erreur personnalisés
   errorMessages: {
-    networkError: "Erreur de connexion. Vérifiez votre connexion internet.",
-    serverError: "Erreur serveur. Veuillez réessayer plus tard.",
-    unauthorizedError: "Session expirée. Veuillez vous reconnecter.",
-    forbiddenError: "Accès non autorisé.",
-    notFoundError: "Ressource introuvable.",
-    validationError: "Données invalides. Vérifiez votre saisie.",
+    networkError: 'Erreur de connexion. Vérifiez votre connexion internet.',
+    serverError: 'Erreur serveur. Veuillez réessayer plus tard.',
+    unauthorizedError: 'Session expirée. Veuillez vous reconnecter.',
+    forbiddenError: 'Accès non autorisé.',
+    notFoundError: 'Ressource introuvable.',
+    validationError: 'Données invalides. Vérifiez votre saisie.',
     timeoutError: "Délai d'attente dépassé. Veuillez réessayer.",
     genericError: "Une erreur inattendue s'est produite.",
   },
@@ -178,8 +168,8 @@ export const environment = {
   // Configuration de maintenance
   maintenance: {
     enabled: false,
-    message: "Maintenance en cours. Veuillez réessayer plus tard.",
-    estimatedTime: "",
-    contactInfo: "${SUPPORT_EMAIL}",
+    message: 'Maintenance en cours. Veuillez réessayer plus tard.',
+    estimatedTime: '',
+    contactInfo: '${SUPPORT_EMAIL}',
   },
 };

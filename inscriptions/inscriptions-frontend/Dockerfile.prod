@@ -21,82 +21,145 @@ RUN rm -rf node_modules package-lock.json && \
     npm install --save-dev @angular/compiler-cli@20.1.6 && \
     npm install --save-dev typescript@5.6.0
 
-# ✅ COPIE DU TEMPLATE depuis le contexte de build
+# ✅ COPIE DU TEMPLATE depuis le contexte de build (racine du mono-repo)
 COPY config-templates/environment.prod.ts.template /tmp/environment.prod.ts.template
 
-# Copie du code source
-COPY . .
+# Copie du code source du frontend
+COPY inscriptions/inscriptions-frontend/ .
 
-# ✅ SUBSTITUTION DES VARIABLES D'ENVIRONNEMENT
+# ✅ SUBSTITUTION DES VARIABLES D'ENVIRONNEMENT - SOLUTION CORRIGÉE
 RUN echo "🔧 Processing environment variables from template..." && \
     if [ -f "/tmp/environment.prod.ts.template" ]; then \
         echo "📝 Substituting variables from config-templates..." && \
+        echo "🔍 Template content preview:" && \
+        head -10 /tmp/environment.prod.ts.template && \
+        echo "..." && \
+        echo "🔄 Running envsubst..." && \
         envsubst < /tmp/environment.prod.ts.template > src/environments/environment.prod.ts && \
         echo "✅ Environment file generated from template:" && \
         head -20 src/environments/environment.prod.ts && \
-        echo "" && \
-        echo "🔍 Variables used in template:" && \
-        grep -o '\${[^}]*}' /tmp/environment.prod.ts.template | sort | uniq; \
+        echo "📊 File size: $(wc -l < src/environments/environment.prod.ts) lines" && \
+        echo "🔍 Variables substituted:" && \
+        grep -o '\${[^}]*}' /tmp/environment.prod.ts.template | sort | uniq || echo "No variables found in template"; \
     elif [ ! -f "src/environments/environment.prod.ts" ]; then \
-        echo "📝 Creating default environment.prod.ts..." && \
-        cat > src/environments/environment.prod.ts << 'EOF'
-export const environment = {
-  production: true,
-  apiUrl: '${FRONTEND_API_URL}'
-};
-EOF
+        echo "⚠️  Template not found, creating minimal fallback environment.prod.ts..." && \
+        echo 'export const environment = {' | tee src/environments/environment.prod.ts > /dev/null && \
+        echo '  production: true,' | tee -a src/environments/environment.prod.ts > /dev/null && \
+        echo "  apiUrl: '/api'," | tee -a src/environments/environment.prod.ts > /dev/null && \
+        echo "  appName: 'Assolution'," | tee -a src/environments/environment.prod.ts > /dev/null && \
+        echo "  appVersion: '1.0.0'" | tee -a src/environments/environment.prod.ts > /dev/null && \
+        echo '};' | tee -a src/environments/environment.prod.ts > /dev/null && \
+        echo "⚠️  Fallback environment created"; \
     else \
-        echo "✅ environment.prod.ts already exists"; \
+        echo "✅ environment.prod.ts already exists, content preview:" && \
+        head -10 src/environments/environment.prod.ts; \
     fi
 
-# ✅ BUILD
-RUN echo "🎯 Building application..." && \
-    npx ng build --configuration=production --output-hashing=all && \
-    echo "✅ Build completed!"
-
-# Diagnostic de la structure de build
-RUN echo "🔍 DIAGNOSTIC BUILD STRUCTURE:" && \
-    echo "📁 Contents of /build/dist:" && \
-    ls -la /build/dist/ 2>/dev/null || echo "No dist directory" && \
-    echo "📁 Looking for index.html:" && \
-    find /build -name "index.html" -type f
-
-# Copie intelligente des fichiers
-RUN mkdir -p /build/final_dist && \
-    if [ -f "/build/dist/inscriptions-frontend/browser/index.html" ]; then \
-        echo "✅ Found Angular files in browser subdirectory" && \
-        cp -r /build/dist/inscriptions-frontend/browser/* /build/final_dist/; \
-    elif [ -f "/build/dist/inscriptions-frontend/index.html" ]; then \
-        echo "✅ Found Angular files in project subdirectory" && \
-        cp -r /build/dist/inscriptions-frontend/* /build/final_dist/; \
-    elif [ -f "/build/dist/browser/index.html" ]; then \
-        echo "✅ Found Angular files in browser directory" && \
-        cp -r /build/dist/browser/* /build/final_dist/; \
-    elif [ -f "/build/dist/index.html" ]; then \
-        echo "✅ Found Angular files in root dist" && \
-        cp -r /build/dist/* /build/final_dist/; \
+# Vérification du fichier généré
+RUN echo "🔍 VERIFICATION FINALE environment.prod.ts:" && \
+    if [ -f "src/environments/environment.prod.ts" ]; then \
+        echo "✅ File exists" && \
+        echo "📊 Size: $(wc -l < src/environments/environment.prod.ts) lines, $(wc -c < src/environments/environment.prod.ts) bytes" && \
+        echo "🔍 First 5 lines:" && \
+        head -5 src/environments/environment.prod.ts && \
+        echo "🔍 Checking for syntax errors..." && \
+        node -c src/environments/environment.prod.ts && echo "✅ Syntax OK" || echo "❌ Syntax error detected"; \
     else \
-        echo "❌ No index.html found! Copying all dist content..." && \
-        cp -r /build/dist/* /build/final_dist/ 2>/dev/null || true; \
-    fi && \
-    echo "📊 Final dist file count: $(find /build/final_dist -type f | wc -l)"
+        echo "❌ environment.prod.ts file missing!" && exit 1; \
+    fi
 
-# Stage final
+# ✅ BUILD ANGULAR
+RUN echo "🎯 Building Angular application..." && \
+    echo "📊 Node version: $(node --version)" && \
+    echo "📊 NPM version: $(npm --version)" && \
+    echo "📊 Angular CLI version:" && \
+    npx ng version --skip-git && \
+    echo "🚀 Starting build process..." && \
+    npx ng build --configuration=production --output-hashing=all --verbose && \
+    echo "✅ Angular build completed successfully!"
+
+# Diagnostic complet de la structure de build
+RUN echo "🔍 DIAGNOSTIC COMPLET BUILD STRUCTURE:" && \
+    echo "📁 Root /build contents:" && \
+    ls -la /build/ && \
+    echo "" && \
+    echo "📁 Contents of /build/dist:" && \
+    ls -la /build/dist/ 2>/dev/null || echo "❌ No dist directory found" && \
+    echo "" && \
+    echo "📁 Searching for index.html recursively:" && \
+    find /build -name "index.html" -type f 2>/dev/null || echo "❌ No index.html found" && \
+    echo "" && \
+    echo "📁 Searching for main.*.js files:" && \
+    find /build -name "main.*.js" -type f 2>/dev/null || echo "❌ No main.js files found"
+
+# Copie intelligente et robuste des fichiers buildés
+RUN echo "📦 SMART COPY OF BUILD ARTIFACTS:" && \
+    mkdir -p /build/final_dist && \
+    BUILD_COPIED=false && \
+    if [ -f "/build/dist/inscriptions-frontend/browser/index.html" ]; then \
+        echo "✅ Method 1: Found Angular 17+ files in browser subdirectory" && \
+        cp -r /build/dist/inscriptions-frontend/browser/* /build/final_dist/ && \
+        BUILD_COPIED=true; \
+    elif [ -f "/build/dist/inscriptions-frontend/index.html" ]; then \
+        echo "✅ Method 2: Found Angular files in project subdirectory" && \
+        cp -r /build/dist/inscriptions-frontend/* /build/final_dist/ && \
+        BUILD_COPIED=true; \
+    elif [ -f "/build/dist/browser/index.html" ]; then \
+        echo "✅ Method 3: Found Angular files in browser directory" && \
+        cp -r /build/dist/browser/* /build/final_dist/ && \
+        BUILD_COPIED=true; \
+    elif [ -f "/build/dist/index.html" ]; then \
+        echo "✅ Method 4: Found Angular files in root dist" && \
+        cp -r /build/dist/* /build/final_dist/ && \
+        BUILD_COPIED=true; \
+    else \
+        echo "⚠️  Method 5: Fallback - copying all dist content..." && \
+        if [ -d "/build/dist" ]; then \
+            cp -r /build/dist/* /build/final_dist/ 2>/dev/null || true && \
+            BUILD_COPIED=true; \
+        fi; \
+    fi && \
+    if [ "$BUILD_COPIED" = "true" ]; then \
+        echo "✅ Build artifacts copied successfully" && \
+        echo "📊 Final dist file count: $(find /build/final_dist -type f 2>/dev/null | wc -l)" && \
+        echo "📊 Final dist size: $(du -sh /build/final_dist 2>/dev/null | cut -f1 || echo 'unknown')" && \
+        echo "🔍 Key files present:" && \
+        ls -la /build/final_dist/index.html 2>/dev/null || echo "❌ index.html missing" && \
+        ls -la /build/final_dist/main.*.js 2>/dev/null | head -3 || echo "❌ main.js files missing"; \
+    else \
+        echo "❌ CRITICAL: No build artifacts could be copied!" && \
+        exit 1; \
+    fi
+
+# Stage final - Production runtime
 FROM alpine:3.19 AS production
 
+# Installation des outils nécessaires pour le runtime
 RUN apk add --no-cache curl bash && \
     rm -rf /var/cache/apk/* && \
     mkdir -p /app/dist
 
-# Copie des fichiers buildés
+# Copie des fichiers buildés depuis le stage builder
 COPY --from=builder /build/final_dist/ /app/dist/
 
-# Script de vérification
+# Vérification finale des fichiers copiés
+RUN echo "🔍 FINAL PRODUCTION VERIFICATION:" && \
+    echo "📊 Files in production: $(find /app/dist -type f | wc -l)" && \
+    echo "📊 Total size: $(du -sh /app/dist | cut -f1)" && \
+    echo "🔍 Critical files check:" && \
+    ls -la /app/dist/index.html 2>/dev/null && echo "✅ index.html OK" || echo "❌ index.html MISSING" && \
+    ls -la /app/dist/*.js 2>/dev/null | head -3 && echo "✅ JS files OK" || echo "❌ JS files MISSING" && \
+    ls -la /app/dist/*.css 2>/dev/null | head -3 && echo "✅ CSS files OK" || echo "⚠️  CSS files missing (may be normal)"
+
+# Script de vérification et démarrage
 RUN echo '#!/bin/bash' > /app/verify.sh && \
-    echo 'echo "📁 Assolution Frontend - Static Files Ready"' >> /app/verify.sh && \
+    echo 'echo "🚀 Assolution Frontend - Production Ready"' >> /app/verify.sh && \
+    echo 'echo "📅 Built on: $(date)"' >> /app/verify.sh && \
     echo 'echo "📊 Files: $(find /app/dist -type f | wc -l)"' >> /app/verify.sh && \
     echo 'echo "📊 Size: $(du -sh /app/dist | cut -f1)"' >> /app/verify.sh && \
+    echo 'echo "📁 Directory contents:"' >> /app/verify.sh && \
     echo 'ls -la /app/dist/' >> /app/verify.sh && \
+    echo 'echo "✅ Frontend static files ready for Nginx"' >> /app/verify.sh && \
     echo 'tail -f /dev/null' >> /app/verify.sh && \
     chmod +x /app/verify.sh
 

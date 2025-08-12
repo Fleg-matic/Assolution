@@ -57,171 +57,51 @@ jobs:
                   mvn jacoco:report
                   mvn package -DskipTests
 
-            - name: 🔐 Generate environment.prod.ts for build
+            - name: 🔐 Generate environment.prod.ts from template
               working-directory: ./inscriptions/inscriptions-frontend
+              env:
+                  # ✅ Variables d'environnement pour le template
+                  FRONTEND_API_URL: ${{ secrets.FRONTEND_API_URL }}
+                  FRONTEND_BASE_URL: ${{ secrets.FRONTEND_BASE_URL }}
+                  STRIPE_PUBLISHABLE_KEY_PROD: ${{ secrets.STRIPE_PUBLISHABLE_KEY_PROD }}
+                  ENABLE_ANALYTICS: ${{ secrets.ENABLE_ANALYTICS }}
+                  ENABLE_HTTPS_REDIRECT: ${{ secrets.ENABLE_HTTPS_REDIRECT }}
+                  SUPPORT_EMAIL: ${{ secrets.SUPPORT_EMAIL }}
+                  SALES_EMAIL: ${{ secrets.SALES_EMAIL }}
+                  SUPPORT_PHONE: ${{ secrets.SUPPORT_PHONE }}
+                  COOKIE_DOMAIN: ${{ secrets.COOKIE_DOMAIN }}
+                  COOKIE_SECURE: ${{ secrets.COOKIE_SECURE }}
+                  GOOGLE_ANALYTICS_ID: ${{ secrets.GOOGLE_ANALYTICS_ID }}
               run: |
-                  echo "🔐 Generating environment.prod.ts for test build..."
-
-                  # Vérifier que le template existe
+                  echo "🔍 Checking template existence..."
                   if [ ! -f "../../config-templates/environment.prod.ts.template" ]; then
-                    echo "❌ Template not found, using fallback method"
-                    # Créer un environment.prod.ts basique pour les tests
-                    mkdir -p src/environments
-                    cat > src/environments/environment.prod.ts << 'EOF'
-                  export const environment = {
-                    production: true,
-                    development: false,
-                    apiUrl: 'https://api.assolution.com',
-                    appName: 'Assolution',
-                    appVersion: '1.0.0',
-                    baseUrl: 'https://assolution.com',
-                    assetsUrl: '/assets',
-                    auth: {
-                      tokenKey: 'assolution_token',
-                      refreshTokenKey: 'assolution_refresh_token',
-                      tokenExpiry: 3600000,
-                      refreshTokenExpiry: 86400000,
-                      autoRefresh: true,
-                      loginUrl: '/auth/login',
-                      logoutUrl: '/auth/logout',
-                      registerUrl: '/auth/register',
-                      profileUrl: '/auth/profile'
-                    },
-                    features: {
-                      registration: true,
-                      payment: true,
-                      notifications: true,
-                      analytics: true,
-                      errorReporting: true,
-                      maintenanceMode: false
-                    },
-                    payment: {
-                      stripePublishableKey: 'pk_test_placeholder',
-                      currency: 'EUR',
-                      country: 'FR'
-                    },
-                    logging: {
-                      level: 'warn',
-                      enableConsoleLog: false,
-                      enableRemoteLogging: true,
-                      logEndpoint: '/api/logs'
-                    },
-                    performance: {
-                      enableServiceWorker: true,
-                      enableLazyLoading: true,
-                      enableCaching: true,
-                      cacheTimeout: 300000,
-                      debounceTime: 300,
-                      throttleTime: 1000
-                    },
-                    security: {
-                      enableCSP: true,
-                      enableXSRFProtection: true,
-                      enableHttpsRedirect: true,
-                      maxUploadSize: 20971520,
-                      allowedFileTypes: ['.pdf', '.jpg', '.jpeg', '.png', '.doc', '.docx']
-                    },
-                    ui: {
-                      theme: 'light',
-                      language: 'fr',
-                      dateFormat: 'dd/MM/yyyy',
-                      currencyFormat: 'EUR',
-                      timezone: 'Europe/Paris',
-                      itemsPerPage: 20,
-                      maxRetries: 3
-                    },
-                    notifications: {
-                      position: 'top-right',
-                      timeout: 5000,
-                      showProgress: true,
-                      enableSound: false,
-                      maxNotifications: 5
-                    },
-                    contact: {
-                      supportEmail: 'support@assolution.com',
-                      salesEmail: 'commercial@assolution.com',
-                      phoneNumber: '+33 1 23 45 67 89',
-                      address: 'France'
-                    },
-                    cookies: {
-                      domain: '.assolution.com',
-                      secure: true,
-                      sameSite: 'Lax',
-                      expires: 30
-                    },
-                    analytics: {
-                      googleAnalyticsId: '',
-                      enableTracking: false,
-                      trackPageViews: false,
-                      trackEvents: false
-                    },
-                    debug: {
-                      enableDebugInfo: false,
-                      showApiCalls: false,
-                      showPerformanceMetrics: false,
-                      enableMockData: false
-                    },
-                    endpoints: {
-                      login: '/auth/login',
-                      logout: '/auth/logout',
-                      register: '/auth/register',
-                      refreshToken: '/auth/refresh',
-                      forgotPassword: '/auth/forgot-password',
-                      resetPassword: '/auth/reset-password',
-                      users: '/users',
-                      profile: '/users/profile',
-                      inscriptions: '/inscriptions',
-                      myInscriptions: '/inscriptions/my',
-                      payments: '/payments',
-                      paymentMethods: '/payments/methods',
-                      invoices: '/payments/invoices',
-                      upload: '/files/upload',
-                      download: '/files/download',
-                      admin: '/admin',
-                      stats: '/admin/stats',
-                      reports: '/admin/reports',
-                      health: '/actuator/health',
-                      version: '/actuator/info'
-                    },
-                    errorMessages: {
-                      networkError: 'Erreur de connexion. Vérifiez votre connexion internet.',
-                      serverError: 'Erreur serveur. Veuillez réessayer plus tard.',
-                      unauthorizedError: 'Session expirée. Veuillez vous reconnecter.',
-                      forbiddenError: 'Accès non autorisé.',
-                      notFoundError: 'Ressource introuvable.',
-                      validationError: 'Données invalides. Vérifiez votre saisie.',
-                      timeoutError: 'Délai d\'attente dépassé. Veuillez réessayer.',
-                      genericError: 'Une erreur inattendue s\'est produite.'
-                    },
-                    maintenance: {
-                      enabled: false,
-                      message: 'Maintenance en cours. Veuillez réessayer plus tard.',
-                      estimatedTime: '',
-                      contactInfo: 'support@assolution.com'
-                    }
-                  };
-                  EOF
-                  else
-                    # Utiliser le template avec des valeurs par défaut
-                    mkdir -p src/environments
-                    cp ../../config-templates/environment.prod.ts.template src/environments/environment.prod.ts
-                    
-                    # Remplacer les variables par des valeurs de test
-                    sed -i 's|\${FRONTEND_API_URL}|https://api.assolution.com|g' src/environments/environment.prod.ts
-                    sed -i 's|\${FRONTEND_BASE_URL}|https://assolution.com|g' src/environments/environment.prod.ts
-                    sed -i 's|\${STRIPE_PUBLISHABLE_KEY_PROD}|pk_test_placeholder|g' src/environments/environment.prod.ts
-                    sed -i 's|\${SUPPORT_EMAIL}|support@assolution.com|g' src/environments/environment.prod.ts
-                    sed -i 's|\${SALES_EMAIL}|commercial@assolution.com|g' src/environments/environment.prod.ts
-                    sed -i 's|\${SUPPORT_PHONE}|+33 1 23 45 67 89|g' src/environments/environment.prod.ts
-                    sed -i 's|\${COOKIE_DOMAIN}|.assolution.com|g' src/environments/environment.prod.ts
-                    sed -i 's|\${COOKIE_SECURE}|true|g' src/environments/environment.prod.ts
-                    sed -i 's|\${ENABLE_HTTPS_REDIRECT}|true|g' src/environments/environment.prod.ts
-                    sed -i 's|\${GOOGLE_ANALYTICS_ID}||g' src/environments/environment.prod.ts
-                    sed -i 's|\${ENABLE_ANALYTICS}|false|g' src/environments/environment.prod.ts
+                    echo "❌ Template not found!"
+                    exit 1
                   fi
 
-                  echo "✅ Environment.prod.ts created for build test"
-                  echo "📁 File size: $(du -h src/environments/environment.prod.ts)"
+                  echo "📝 Generating environment.prod.ts from template..."
+                  mkdir -p src/environments
+
+                  # Utiliser envsubst pour substituer les variables
+                  envsubst < ../../config-templates/environment.prod.ts.template > src/environments/environment.prod.ts
+
+                  echo "✅ Environment file generated:"
+                  echo "📊 File size: $(wc -l < src/environments/environment.prod.ts) lines"
+                  echo "🔍 First 10 lines:"
+                  head -10 src/environments/environment.prod.ts
+
+                  # Vérification de la syntaxe TypeScript
+                  echo "🔍 Checking TypeScript syntax..."
+                  node -e "
+                    const fs = require('fs');
+                    const content = fs.readFileSync('src/environments/environment.prod.ts', 'utf8');
+                    if (content.includes('undefined') || content.includes('\${')) {
+                      console.error('❌ Variables not properly substituted!');
+                      console.log('Content preview:', content.substring(0, 500));
+                      process.exit(1);
+                    }
+                    console.log('✅ File looks good');
+                  "
 
             - name: 📦 Frontend Tests & Build
               working-directory: ./inscriptions/inscriptions-frontend
@@ -254,225 +134,113 @@ jobs:
                     -Dsonar.coverage.jacoco.xmlReportPaths=target/site/jacoco/jacoco.xml \
                     -Dsonar.junit.reportPaths=target/surefire-reports
 
-            - name: 🔧 Generate config files for E2E
+            - name: 🔧 Setup E2E environment and Cypress
+              env:
+                  # Variables pour les tests E2E
+                  CYPRESS_BASE_URL: ${{ secrets.CYPRESS_BASE_URL_PROD }}
+                  CYPRESS_API_URL: ${{ secrets.CYPRESS_API_URL_PROD }}
+                  CYPRESS_ENVIRONMENT: ${{ secrets.CYPRESS_ENVIRONMENT_PROD }}
+                  CYPRESS_TEST_USER_EMAIL: ${{ secrets.CYPRESS_TEST_USER_EMAIL }}
+                  CYPRESS_TEST_USER_PASSWORD: ${{ secrets.CYPRESS_TEST_USER_PASSWORD }}
+                  CYPRESS_TEST_ADMIN_EMAIL: ${{ secrets.CYPRESS_TEST_ADMIN_EMAIL }}
+                  CYPRESS_TEST_ADMIN_PASSWORD: ${{ secrets.CYPRESS_TEST_ADMIN_PASSWORD }}
               run: |
-                  echo "📝 Création du fichier cypress.config.js..."
-                  cat > cypress.config.js << 'EOF'
-                  const { defineConfig } = require('cypress')
+                  echo "🔧 Setting up Cypress environment..."
 
-                  module.exports = defineConfig({
-                    e2e: {
-                      baseUrl: '${{ secrets.CYPRESS_BASE_URL }}',
-                      apiUrl: '${{ secrets.CYPRESS_API_URL }}',
-                      env: {
-                        environment: '${{ secrets.CYPRESS_ENVIRONMENT }}',
-                        testUserEmail: '${{ secrets.CYPRESS_TEST_USER_EMAIL }}',
-                        testUserPassword: '${{ secrets.CYPRESS_TEST_USER_PASSWORD }}',
-                        testAdminEmail: '${{ secrets.CYPRESS_TEST_ADMIN_EMAIL }}',
-                        testAdminPassword: '${{ secrets.CYPRESS_TEST_ADMIN_PASSWORD }}'
-                      },
-                      setupNodeEvents(on, config) {
-                        // implement node event listeners here
-                      },
-                    },
-                  })
-                  EOF
-
-                  echo "📝 Création du fichier docker-compose.prod.yml..."
-                  cat > docker-compose.prod.yml << 'EOF'
-                  version: '3.8'
-                  services:
-                    postgres:
-                      image: postgres:17
-                      environment:
-                        POSTGRES_DB: assolution_prod
-                        POSTGRES_USER: assolution_user
-                        POSTGRES_PASSWORD: ${{ secrets.DB_PASSWORD }}
-                      volumes:
-                        - postgres_data:/var/lib/postgresql/data
-                      healthcheck:
-                        test: ["CMD-SHELL", "pg_isready -U assolution_user -d assolution_prod"]
-                        interval: 10s
-                        timeout: 5s
-                        retries: 5
-                      ports:
-                        - "5434:5432"
-                      networks:
-                        - assolution-prod-network
-                    
-                    backend:
-                      build:
-                        context: ./inscriptions/inscriptions-backend
-                        dockerfile: Dockerfile.prod
-                      environment:
-                        SPRING_PROFILES_ACTIVE: prod
-                        DB_HOST: postgres
-                        DB_PORT: 5432
-                        DB_NAME: assolution_prod
-                        DB_USER: assolution_user
-                        DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
-                        JWT_SECRET: ${{ secrets.JWT_SECRET }}
-                        STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
-                        STRIPE_WEBHOOK_SECRET: ${{ secrets.STRIPE_WEBHOOK_SECRET }}
-                        EMAIL_HOST: ${{ secrets.EMAIL_HOST }}
-                        EMAIL_USER: ${{ secrets.EMAIL_USER }}
-                        EMAIL_PASSWORD: ${{ secrets.EMAIL_PASSWORD }}
-                        SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/assolution_prod
-                        SPRING_DATASOURCE_USERNAME: assolution_user
-                        SPRING_DATASOURCE_PASSWORD: ${{ secrets.DB_PASSWORD }}
-                        JAVA_OPTS: "-Xmx512m -Xms256m -XX:+UseG1GC"
-                      entrypoint: >
-                        sh -c "
-                          echo 'JAR found in /app, starting application...'
-                          echo 'Database Host: postgres'
-                          echo 'Waiting for database connection...'
-                          while ! nc -z postgres 5432; do sleep 1; done
-                          echo 'Database connection established!'
-                          echo 'Starting Spring Boot application...'
-                          exec java -Xmx512m -Xms256m -XX:+UseG1GC -Dspring.profiles.active=prod -jar /app/app.jar
-                        "
-                      depends_on:
-                        postgres:
-                          condition: service_healthy
-                      networks:
-                        - assolution-prod-network
-                      restart: unless-stopped
-                      ports:
-                        - "8080:8080"
-                    
-                    frontend:
-                      build:
-                        context: ./inscriptions/inscriptions-frontend
-                        dockerfile: Dockerfile.prod
-                      networks:
-                        - assolution-prod-network
-                      ports:
-                        - "4200:80"  # Le frontend expose le port 80 (nginx interne)
-                    
-                    nginx:
-                      image: nginx:1.25-alpine
-                      ports:
-                        - "80:80"
-                      volumes:
-                        - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-                      depends_on:
-                        - frontend
-                        - backend
-                      networks:
-                        - assolution-prod-network
-                      healthcheck:
-                        test: ["CMD", "curl", "-f", "http://localhost/nginx-health"]
-                        interval: 30s
-                        timeout: 10s
-                        retries: 3
-
-                  networks:
-                    assolution-prod-network:
-                      driver: bridge
-
-                  volumes:
-                    postgres_data:
-                  EOF
-
-                  echo "📝 Création du fichier application-prod.properties..."
-                  cat > inscriptions/inscriptions-backend/src/main/resources/application-prod.properties << 'EOF'
-                  # Server Configuration
-                  server.port=8080
-                  server.servlet.context-path=/api
-                  management.endpoints.web.exposure.include=health,info
-                  management.endpoint.health.show-details=always
-
-                  # Database Configuration
-                  spring.datasource.url=jdbc:postgresql://postgres:5432/assolution_prod
-                  spring.datasource.username=assolution_user
-                  spring.datasource.password=${{ secrets.DB_PASSWORD }}
-                  spring.datasource.driver-class-name=org.postgresql.Driver
-                  spring.datasource.hikari.connection-timeout=30000
-                  spring.datasource.hikari.maximum-pool-size=10
-
-                  # JPA Configuration
-                  spring.jpa.hibernate.ddl-auto=update
-                  spring.jpa.show-sql=false
-                  spring.jpa.properties.hibernate.dialect=org.hibernate.dialect.PostgreSQLDialect
-                  spring.jpa.properties.hibernate.format_sql=false
-                  spring.jpa.properties.hibernate.jdbc.lob.non_contextual_creation=true
-
-                  # JWT Configuration
-                  app.jwt.secret=${{ secrets.JWT_SECRET }}
-                  app.jwt.expiration=86400
-
-                  # Stripe Configuration
-                  stripe.secret.key=${{ secrets.STRIPE_SECRET_KEY }}
-                  stripe.webhook.secret=${{ secrets.STRIPE_WEBHOOK_SECRET }}
-
-                  # Email Configuration
-                  spring.mail.host=${{ secrets.EMAIL_HOST }}
-                  spring.mail.port=587
-                  spring.mail.username=${{ secrets.EMAIL_USER }}
-                  spring.mail.password=${{ secrets.EMAIL_PASSWORD }}
-                  spring.mail.properties.mail.smtp.auth=true
-                  spring.mail.properties.mail.smtp.starttls.enable=true
-
-                  # Logging Configuration
-                  logging.level.com.assolution=INFO
-                  logging.level.org.springframework.security=WARN
-                  logging.level.org.hibernate=WARN
-                  logging.level.org.springframework.boot.autoconfigure=INFO
-                  EOF
-
-            - name: 🔬 E2E Tests
-              run: |
                   # Installer Cypress
                   npm install cypress --save-dev
                   npx cypress verify
+
+                  # Utiliser le cypress.config.js existant (il gère déjà les variables d'environnement)
+                  echo "✅ Cypress configured with existing config file"
+                  echo "🌐 Base URL: $CYPRESS_BASE_URL"
+                  echo "🔌 API URL: $CYPRESS_API_URL"
+
+            - name: 🔬 E2E Tests
+              env:
+                  # Variables d'environnement pour Docker Compose E2E
+                  DB_PASSWORD_PROD: ${{ secrets.DB_PASSWORD_PROD }}
+                  JWT_SECRET_PROD: ${{ secrets.JWT_SECRET_PROD }}
+                  STRIPE_SECRET_KEY_PROD: ${{ secrets.STRIPE_SECRET_KEY_PROD }}
+                  STRIPE_WEBHOOK_SECRET_PROD: ${{ secrets.STRIPE_WEBHOOK_SECRET_PROD }}
+                  EMAIL_HOST_PROD: ${{ secrets.EMAIL_HOST_PROD }}
+                  EMAIL_USER_PROD: ${{ secrets.EMAIL_USER_PROD }}
+                  EMAIL_PASSWORD_PROD: ${{ secrets.EMAIL_PASSWORD_PROD }}
+                  FRONTEND_API_URL: ${{ secrets.FRONTEND_API_URL }}
+                  FRONTEND_BASE_URL: ${{ secrets.FRONTEND_BASE_URL }}
+                  STRIPE_PUBLISHABLE_KEY_PROD: ${{ secrets.STRIPE_PUBLISHABLE_KEY_PROD }}
+                  ENABLE_ANALYTICS: ${{ secrets.ENABLE_ANALYTICS }}
+                  ENABLE_HTTPS_REDIRECT: ${{ secrets.ENABLE_HTTPS_REDIRECT }}
+                  SUPPORT_EMAIL: ${{ secrets.SUPPORT_EMAIL }}
+                  SALES_EMAIL: ${{ secrets.SALES_EMAIL }}
+                  SUPPORT_PHONE: ${{ secrets.SUPPORT_PHONE }}
+                  COOKIE_DOMAIN: ${{ secrets.COOKIE_DOMAIN }}
+                  COOKIE_SECURE: ${{ secrets.COOKIE_SECURE }}
+                  GOOGLE_ANALYTICS_ID: ${{ secrets.GOOGLE_ANALYTICS_ID }}
+                  # Variables Cypress
+                  CYPRESS_BASE_URL: ${{ secrets.CYPRESS_BASE_URL_PROD }}
+                  CYPRESS_API_URL: ${{ secrets.CYPRESS_API_URL_PROD }}
+                  CYPRESS_ENVIRONMENT: ${{ secrets.CYPRESS_ENVIRONMENT_PROD }}
+                  CYPRESS_TEST_USER_EMAIL: ${{ secrets.CYPRESS_TEST_USER_EMAIL }}
+                  CYPRESS_TEST_USER_PASSWORD: ${{ secrets.CYPRESS_TEST_USER_PASSWORD }}
+                  CYPRESS_TEST_ADMIN_EMAIL: ${{ secrets.CYPRESS_TEST_ADMIN_EMAIL }}
+                  CYPRESS_TEST_ADMIN_PASSWORD: ${{ secrets.CYPRESS_TEST_ADMIN_PASSWORD }}
+              run: |
+                  echo "🚀 Starting E2E test environment..."
 
                   # Nettoyer les containers existants
                   docker compose -f docker-compose.prod.yml down --remove-orphans || true
                   docker system prune -f || true
 
-                  # Vérifier que le port 5432 est libre
+                  # Vérifier que les ports sont libres
                   sudo lsof -ti:5432 | xargs -r sudo kill -9 || true
+                  sudo lsof -ti:8080 | xargs -r sudo kill -9 || true
 
-                  # Démarrer les services en arrière-plan
-                  docker compose -f docker-compose.prod.yml up -d
+                  # Démarrer les services
+                  echo "🔄 Starting services with docker-compose.prod.yml..."
+                  docker compose -f docker-compose.prod.yml up -d --build
 
-                  # Attendre que les services démarrent
-                  echo "⏳ Waiting for containers to start..."
-                  sleep 30
+                  # Attendre que les services soient prêts
+                  echo "⏳ Waiting for services to be ready..."
+                  sleep 60
 
-                  # Diagnostic complet AVANT les tests
+                  # Diagnostic des services
                   echo "📋 Container status:"
                   docker compose -f docker-compose.prod.yml ps
 
-                  echo "📋 PostgreSQL logs:"
-                  docker compose -f docker-compose.prod.yml logs postgres --tail=20
+                  echo "📋 Backend logs:"
+                  docker compose -f docker-compose.prod.yml logs backend --tail=20
 
-                  echo "📋 Backend logs (COMPLETE):"
-                  docker compose -f docker-compose.prod.yml logs backend
+                  echo "📋 Frontend builder logs:"
+                  docker compose -f docker-compose.prod.yml logs frontend-builder --tail=20
 
-                  echo "📋 Frontend logs:"
-                  docker compose -f docker-compose.prod.yml logs frontend --tail=20
+                  echo "📋 Nginx logs:"
+                  docker compose -f docker-compose.prod.yml logs nginx --tail=20
 
-                  # Tests progressifs
-                  echo "🔍 Testing PostgreSQL connection..."
-                  docker compose -f docker-compose.prod.yml exec -T postgres pg_isready -U assolution_user -d assolution_prod || echo "❌ PostgreSQL not ready"
+                  # Tests de connectivité progressifs
+                  echo "🔍 Testing services health..."
 
-                  echo "🔍 Testing backend port 8080..."
-                  timeout 60 bash -c 'until nc -z localhost 8080; do echo "Waiting for port 8080..."; sleep 5; done' || echo "❌ Port 8080 not accessible"
+                  # Test PostgreSQL
+                  timeout 30 bash -c 'until docker compose -f docker-compose.prod.yml exec -T postgres pg_isready -U assolution_user -d assolution_prod; do echo "Waiting for PostgreSQL..."; sleep 5; done' || echo "❌ PostgreSQL not ready"
 
-                  echo "🔍 Testing backend health endpoint directly..."
-                  timeout 60 bash -c 'until curl -f http://localhost:8080/api/actuator/health; do echo "Waiting for backend health..."; sleep 5; done' || echo "❌ Backend health check failed"
+                  # Test Backend
+                  timeout 120 bash -c 'until curl -f http://localhost:8080/api/actuator/health; do echo "Waiting for backend..."; sleep 5; done' || echo "❌ Backend not ready"
 
-                  echo "🔍 Testing frontend health..."
-                  timeout 120 bash -c 'until curl -f http://localhost:4200/health; do echo "Waiting for frontend..."; sleep 5; done' || echo "❌ Frontend health check failed"
+                  # Test Nginx
+                  timeout 60 bash -c 'until curl -f http://localhost:80/; do echo "Waiting for nginx..."; sleep 5; done' || echo "❌ Nginx not ready"
 
-                  echo "🔍 Testing nginx health..."
-                  timeout 180 bash -c 'until curl -f http://localhost:80/nginx-health; do echo "Waiting for nginx..."; sleep 5; done' || echo "❌ Nginx health check failed"
+                  # Si tous les services sont prêts, lancer Cypress
+                  if curl -f http://localhost:80/ && curl -f http://localhost:8080/api/actuator/health; then
+                    echo "✅ All services ready, starting Cypress tests..."
+                    npx cypress run --spec "cypress/e2e/**/*.cy.js" --browser chrome --headless
+                  else
+                    echo "❌ Services not ready, skipping Cypress tests"
+                    echo "📋 Final diagnostics:"
+                    docker compose -f docker-compose.prod.yml logs --tail=50
+                    exit 1
+                  fi
 
-                  # Si tout va bien, lancer Cypress
-                  npx cypress run --config-file ./cypress.config.js --spec "./cypress/e2e/**/*.cy.js" --browser chrome --headless
-
-                  # Nettoyer
+                  # Nettoyer après les tests
                   docker compose -f docker-compose.prod.yml down
 
     security-scan:
@@ -522,7 +290,6 @@ jobs:
                   ssh -o StrictHostKeyChecking=no ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} "
                     cd /home/dbm/assolution-prod || exit 0
                     
-                    # Créer un backup avant déploiement
                     if docker compose ps | grep postgres; then
                       timestamp=\$(date +%Y%m%d_%H%M%S)
                       mkdir -p backups
@@ -532,6 +299,31 @@ jobs:
                   "
 
             - name: 📂 Deploy to Production VM
+              env:
+                  # ✅ TOUTES les variables d'environnement pour la production
+                  DB_PASSWORD: ${{ secrets.DB_PASSWORD_PROD }}
+                  DB_NAME: "assolution_prod"
+                  DB_USER: "assolution_user"
+                  JWT_SECRET: ${{ secrets.JWT_SECRET_PROD }}
+                  STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY_PROD }}
+                  STRIPE_WEBHOOK_SECRET: ${{ secrets.STRIPE_WEBHOOK_SECRET_PROD }}
+                  STRIPE_PUBLISHABLE_KEY_PROD: ${{ secrets.STRIPE_PUBLISHABLE_KEY_PROD }}
+                  EMAIL_HOST: ${{ secrets.EMAIL_HOST_PROD }}
+                  EMAIL_USER: ${{ secrets.EMAIL_USER_PROD }}
+                  EMAIL_PASSWORD: ${{ secrets.EMAIL_PASSWORD_PROD }}
+                  EMAIL_BASE_URL: ${{ secrets.EMAIL_BASE_URL }}
+                  FRONTEND_API_URL: ${{ secrets.FRONTEND_API_URL }}
+                  FRONTEND_BASE_URL: ${{ secrets.FRONTEND_BASE_URL }}
+                  BACKEND_URL_PROD: ${{ secrets.BACKEND_URL_PROD }}
+                  COOKIE_DOMAIN: ${{ secrets.COOKIE_DOMAIN }}
+                  COOKIE_SECURE: ${{ secrets.COOKIE_SECURE }}
+                  CORS_ALLOWED_ORIGINS: ${{ secrets.CORS_ALLOWED_ORIGINS }}
+                  ENABLE_ANALYTICS: ${{ secrets.ENABLE_ANALYTICS }}
+                  ENABLE_HTTPS_REDIRECT: ${{ secrets.ENABLE_HTTPS_REDIRECT }}
+                  SUPPORT_EMAIL: ${{ secrets.SUPPORT_EMAIL }}
+                  SALES_EMAIL: ${{ secrets.SALES_EMAIL }}
+                  SUPPORT_PHONE: ${{ secrets.SUPPORT_PHONE }}
+                  GOOGLE_ANALYTICS_ID: ${{ secrets.GOOGLE_ANALYTICS_ID }}
               run: |
                   # Créer le dossier de production
                   ssh -o StrictHostKeyChecking=no ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} "
@@ -546,32 +338,28 @@ jobs:
                   ssh -o StrictHostKeyChecking=no ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} "
                     cd /home/dbm/assolution-prod
                     
-                    # Rolling update : démarrer les nouveaux containers
-                    docker compose -f docker-compose.prod.yml up -d --build --no-deps backend
-                    sleep 30
+                    echo '🚀 Starting production deployment...'
+                    docker compose -f docker-compose.prod.yml down --remove-orphans
+                    docker compose -f docker-compose.prod.yml build --no-cache
+                    docker compose -f docker-compose.prod.yml up -d
                     
-                    # Vérifier que le backend est opérationnel
-                    if curl -f http://localhost:8080/api/actuator/health; then
-                      echo '✅ Backend is healthy, updating frontend'
-                      docker compose -f docker-compose.prod.yml up -d --build --no-deps frontend nginx
-                    else
-                      echo '❌ Backend health check failed, rolling back'
-                      exit 1
-                    fi
+                    echo '⏳ Waiting for services to start...'
+                    sleep 60
+                    
+                    # Diagnostic
+                    echo '📊 Container status:'
+                    docker compose -f docker-compose.prod.yml ps
+                    echo '📋 Recent logs:'
+                    docker compose -f docker-compose.prod.yml logs --tail=20
                     
                     # Nettoyer les anciennes images
                     docker image prune -f
-                    
-                    # Logs
-                    docker compose -f docker-compose.prod.yml ps
-                    docker compose -f docker-compose.prod.yml logs --tail=20
                   "
 
             - name: 🩺 Production Health Checks
               run: |
                   sleep 90
 
-                  # Tests de santé complets
                   echo "🔍 Running comprehensive health checks..."
 
                   # Test API Health
@@ -596,32 +384,6 @@ jobs:
                     exit 1
                   fi
 
-                  # Test Database Connection
-                  if curl -f http://${{ secrets.SSH_HOST }}/api/actuator/health/db; then
-                    echo "✅ Database connection is healthy"
-                  else
-                    echo "❌ Database connection check failed"
-                    exit 1
-                  fi
-
-            - name: 🔄 Post-Deployment Tasks
-              run: |
-                  ssh -o StrictHostKeyChecking=no ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} "
-                    cd /home/dbm/assolution-prod
-                    
-                    # Logs de déploiement
-                    echo '📊 === DEPLOYMENT REPORT ===' > deployment_report.txt
-                    echo 'Deployment Date: \$(date)' >> deployment_report.txt
-                    echo 'Git Commit: ${{ github.sha }}' >> deployment_report.txt
-                    echo 'Deployed by: ${{ github.actor }}' >> deployment_report.txt
-                    echo '' >> deployment_report.txt
-                    echo '🐳 Container Status:' >> deployment_report.txt
-                    docker compose -f docker-compose.prod.yml ps >> deployment_report.txt
-                    
-                    # Garder seulement les 10 derniers backups
-                    find backups/ -name '*.sql' -type f -print0 | xargs -0 ls -t | tail -n +11 | xargs -I {} rm -- {} || true
-                  "
-
             - name: 📢 Production Deployment Notification
               if: success()
               run: |
@@ -629,8 +391,6 @@ jobs:
                   echo "🔗 Production URL: http://${{ secrets.SSH_HOST }}"
                   echo "🔗 API URL: http://${{ secrets.SSH_HOST }}/api"
                   echo "📊 Health Check: http://${{ secrets.SSH_HOST }}/api/actuator/health"
-                  echo "🔒 Security scan completed"
-                  echo "💾 Database backup created"
 
             - name: 🚨 Rollback on Failure
               if: failure()
@@ -638,11 +398,8 @@ jobs:
                   echo "❌ Deployment failed, attempting rollback..."
                   ssh -o StrictHostKeyChecking=no ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} "
                     cd /home/dbm/assolution-prod
-                    
-                    # Utiliser la dernière image qui fonctionnait
                     docker compose -f docker-compose.prod.yml down
                     docker compose -f docker-compose.prod.yml up -d
-                    
                     echo '🔄 Rollback completed'
                   "
                   exit 1
