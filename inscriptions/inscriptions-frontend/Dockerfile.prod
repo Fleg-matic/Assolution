@@ -54,7 +54,7 @@ RUN echo "🔧 Processing environment variables from template..." && \
         head -10 src/environments/environment.prod.ts; \
     fi
 
-# Vérification du fichier généré et résolution des conflits TypeScript
+# Vérification du fichier généré
 RUN echo "🔍 VERIFICATION FINALE environment.prod.ts:" && \
     if [ -f "src/environments/environment.prod.ts" ]; then \
         echo "✅ File exists" && \
@@ -62,14 +62,12 @@ RUN echo "🔍 VERIFICATION FINALE environment.prod.ts:" && \
         echo "🔍 First 5 lines:" && \
         head -5 src/environments/environment.prod.ts && \
         echo "🔍 Checking for syntax errors..." && \
-        node -c src/environments/environment.prod.ts && echo "✅ Syntax OK" || echo "❌ Syntax error detected"; \
+        node -c src/environments/environment.prod.ts && echo "✅ Syntax OK" || echo "❌ Syntax error detected" && \
+        echo "📊 TypeScript version: $(npx tsc --version)" && \
+        echo "✅ Environment and TypeScript ready for build"; \
     else \
         echo "❌ environment.prod.ts file missing!" && exit 1; \
-    fi && \
-    echo "🔧 Resolving TypeScript version conflicts..." && \
-    echo "📊 TypeScript version: $(npx tsc --version)" && \
-    echo "📊 Angular CLI version:" && \
-    npx ng version --skip-git
+    fi
 
 # ✅ BUILD ANGULAR avec gestion d'erreurs améliorée
 RUN echo "🎯 Building Angular application..." && \
