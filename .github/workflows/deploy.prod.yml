@@ -321,6 +321,24 @@ jobs:
                     echo "🔍 Backend port check:"
                     docker compose -f docker-compose.prod.yml exec backend netstat -tulpn | grep 8080 || echo "Port 8080 not listening"
                     
+                    echo "🔍 Debugging backend startup script and JAR file..."
+                    
+                    # Vérifier le contenu du script de démarrage
+                    echo "📋 Backend startup script content:"
+                    docker compose -f docker-compose.prod.yml exec backend cat /app/start-prod.sh || echo "Cannot read startup script"
+                    
+                    echo "📋 Files in /app directory:"
+                    docker compose -f docker-compose.prod.yml exec backend ls -la /app/ || echo "Cannot access /app directory"
+                    
+                    echo "📋 JAR file details:"
+                    docker compose -f docker-compose.prod.yml exec backend ls -la /app/*.jar || echo "No JAR files found"
+                    
+                    echo "📋 Check if JAR is executable:"
+                    docker compose -f docker-compose.prod.yml exec backend file /app/app.jar || echo "Cannot check JAR file"
+                    
+                    echo "📋 Test JAR manually:"
+                    docker compose -f docker-compose.prod.yml exec backend java -jar /app/app.jar --help || echo "JAR execution failed"
+
                     echo "🔍 Backend health endpoint test:"
                     timeout 30 bash -c 'until curl -f http://localhost:8080/api/actuator/health; do echo "Trying backend health..."; sleep 5; done' || {
                       echo "❌ Backend health check failed"

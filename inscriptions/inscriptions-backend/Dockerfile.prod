@@ -1,119 +1,92 @@
-# inscriptions/inscriptions-backend/Dockerfile.prod (Production)
-
-# Multi-stage build pour Production
-FROM eclipse-temurin:21-jdk as builder
-
-# Installation de Maven
-RUN apt-get update && apt-get install -y maven && rm -rf /var/lib/apt/lists/*
+# Dockerfile.prod pour le backend Spring Boot
+FROM eclipse-temurin:21-jdk AS builder
 
 WORKDIR /build
 
-# Copie des fichiers de configuration Maven
+# Copier les fichiers de build
 COPY pom.xml .
-COPY .mvn/ .mvn/
-COPY mvnw .
-RUN chmod +x mvnw
+COPY src ./src
+COPY mvnw* ./
 
-# Téléchargement des dépendances
-RUN ./mvnw dependency:go-offline -B
+# Donner les permissions d'exécution
+RUN chmod +x ./mvnw || true
 
-# Copie du code source et build
-COPY src/ ./src/
-RUN ./mvnw clean package -DskipTests -Dmaven.test.skip=true
+# Build de l'application
+RUN ./mvnw clean package -DskipTests || mvn clean package -DskipTests
 
-# Stage de production
+# Vérifier et renommer le JAR
+RUN echo "📦 Checking build artifacts:" && \
+    ls -la target/ && \
+    JAR_FILE=$(find target/ -name "*.jar" -not -name "*-sources.jar" -not -name "*-javadoc.jar" | head -1) && \
+    echo "Found JAR: $JAR_FILE" && \
+    cp "$JAR_FILE" /build/assolution-backend.jar && \
+    ls -la /build/assolution-backend.jar
+
+# Stage final de production
 FROM eclipse-temurin:21-jre-jammy
 
-# Métadonnées
-LABEL maintainer="Assolution Team"
-LABEL version="1.0"
-LABEL description="Assolution Backend - Production"
-LABEL stage="production"
+# Installer les outils nécessaires
+RUN apt-get update && \
+    apt-get install -y tini curl netcat-openbsd && \
+    rm -rf /var/lib/apt/lists/*
 
-# Installation des outils essentiels seulement
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    curl \
-    netcat-traditional \
-    tini \
-    && rm -rf /var/lib/apt/lists/* \
-    && apt-get clean
+# Créer utilisateur non-root
+RUN groupadd -g 1001 appuser && \
+    useradd -r -u 1001 -g appuser appuser
 
-# Variables d'environnement optimisées pour la production
-ENV JAVA_HOME=/usr/local/openjdk-21
-ENV SPRING_PROFILES_ACTIVE=prod
-ENV SERVER_PORT=8080
-ENV JAVA_OPTS="-Xmx512m -Xms256m -XX:+UseG1GC -XX:+UseStringDeduplication -XX:+OptimizeStringConcat"
-
-# Création d'un utilisateur non-root
-RUN groupadd -r appuser && useradd -r -g appuser -d /app -s /bin/false appuser
-
-# Répertoire de travail
+# Créer répertoires
 WORKDIR /app
-
-# Copie du JAR depuis le builder
-COPY --from=builder --chown=appuser:appuser /build/target/assolution-backend.jar app.jar
-
-# Création des répertoires de logs
 RUN mkdir -p /app/logs && chown -R appuser:appuser /app
 
-# Script de démarrage optimisé pour la production
-COPY --chown=appuser:appuser <<EOF /app/start-prod.sh
+# Copier le JAR
+COPY --from=builder --chown=appuser:appuser /build/assolution-backend.jar /app/app.jar
+
+# Vérifier que le JAR est bien copié
+RUN ls -la /app/app.jar && \
+    echo "✅ JAR file is present"
+
+# Créer le script de démarrage corrigé
+RUN cat > /app/start-prod.sh << 'EOF'
 #!/bin/bash
-set -euo pipefail
 
 echo "🏭 Starting Assolution Backend (Production)"
-echo "📊 Java Version: \$(java -version 2>&1 | head -1)"
-echo "🔧 Active Profile: \${SPRING_PROFILES_ACTIVE:-prod}"
-echo "💾 Database Host: \${DB_HOST:-localhost}"
-echo "🚀 JVM Options: \${JAVA_OPTS}"
+echo "📊 Java Version: $(java -version 2>&1 | head -1)"
+echo "🔧 Active Profile: ${SPRING_PROFILES_ACTIVE:-prod}"
+echo "💾 Database Host: ${DB_HOST:-postgres}"
+echo "🚀 JVM Options: ${JAVA_OPTS}"
 
-# Vérification des variables d'environnement critiques
-: \${DB_HOST:?DB_HOST is required}
-: \${DB_PASSWORD:?DB_PASSWORD is required}
-: \${JWT_SECRET:?JWT_SECRET is required}
-
-# Attendre que la base de données soit prête (avec timeout)
+# Attendre la base de données
 echo "⏳ Waiting for database connection..."
-timeout=60
-counter=0
-while ! nc -z \${DB_HOST:-postgres} \${DB_PORT:-5432}; do
-    if [ \$counter -ge \$timeout ]; then
-        echo "❌ Database connection timeout after \$timeout seconds"
-        exit 1
-    fi
-    counter=\$((counter + 1))
-    sleep 1
+while ! nc -z ${DB_HOST:-postgres} ${DB_PORT:-5432}; do sleep 1
 done
 echo "✅ Database connection established!"
 
-# Pré-vérification du JAR
+# Vérifier que le JAR existe
 if [ ! -f "/app/app.jar" ]; then
-    echo "❌ Application JAR not found!"
+    echo "❌ JAR file not found at /app/app.jar"
+    ls -la /app/
     exit 1
 fi
 
-echo "🚀 Starting application..."
+# Démarrer l'application Spring Boot avec la commande CORRECTE
+echo "🚀 Starting Spring Boot application..."
+echo "🔧 Command: java ${JAVA_OPTS} -jar /app/app.jar"
 
-# Démarrage avec optimisations JVM pour production
 exec java ${JAVA_OPTS} \
     -Djava.security.egd=file:/dev/./urandom \
-    -Dspring.profiles.active=\${SPRING_PROFILES_ACTIVE:-prod} \
-    -Dlogging.file.name=/app/logs/application.log \
-    -Dlogging.pattern.file="%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n" \
+    -Dspring.profiles.active=${SPRING_PROFILES_ACTIVE:-prod} \
     -jar /app/app.jar
 EOF
 
-RUN chmod +x /app/start-prod.sh
+# Donner les permissions d'exécution
+RUN chmod +x /app/start-prod.sh && \
+    chown appuser:appuser /app/start-prod.sh
 
-# Changement vers l'utilisateur non-root
+# Utiliser l'utilisateur non-root
 USER appuser
 
-# Port exposé
+# Exposer le port
 EXPOSE 8080
 
-# Health check optimisé
-HEALTHCHECK --interval=30s --timeout=15s --start-period=90s --retries=3 \
-  CMD curl -f http://localhost:8080/actuator/health || exit 1
-
-# Point d'entrée avec tini pour une gestion propre des signaux
+# Point d'entrée
 ENTRYPOINT ["tini", "--", "/app/start-prod.sh"]
