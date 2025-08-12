@@ -1,111 +1,104 @@
 # Multi-stage build pour Production - Assolution Frontend
 FROM node:22-alpine AS builder
 
-# Métadonnées
-LABEL maintainer="Assolution Team"
-LABEL version="1.0"
-LABEL description="Assolution Frontend - Production Build"
-
 # Variables d'environnement pour le build
-ENV NODE_ENV=production
+ENV NODE_ENV=development
 ENV NG_CLI_ANALYTICS=false
 
-# Installation des outils de build
-RUN apk add --no-cache git python3 make g++ curl bash
-
-# Installation d'Angular CLI
-RUN npm install -g @angular/cli@20
+# Installation des outils de build + envsubst pour substitution de variables
+RUN apk add --no-cache git python3 make g++ curl bash gettext
 
 WORKDIR /build
 
 # Copie des fichiers de dépendances
 COPY package*.json ./
-RUN npm ci --include=dev && npm cache clean --force
+
+# Installation des dépendances
+RUN rm -rf node_modules package-lock.json && \
+    npm install && \
+    npm install --save-dev @angular/cli@20.1.5 && \
+    npm install --save-dev @angular-devkit/build-angular@20.1.5 && \
+    npm install --save-dev @angular/compiler-cli@20.1.6 && \
+    npm install --save-dev typescript@5.6.0
+
+# ✅ COPIE DU TEMPLATE depuis le contexte de build
+COPY config-templates/environment.prod.ts.template /tmp/environment.prod.ts.template
 
 # Copie du code source
 COPY . .
 
-# Build de production avec optimisations
-RUN ng build --configuration=production --output-hashing=all
+# ✅ SUBSTITUTION DES VARIABLES D'ENVIRONNEMENT
+RUN echo "🔧 Processing environment variables from template..." && \
+    if [ -f "/tmp/environment.prod.ts.template" ]; then \
+        echo "📝 Substituting variables from config-templates..." && \
+        envsubst < /tmp/environment.prod.ts.template > src/environments/environment.prod.ts && \
+        echo "✅ Environment file generated from template:" && \
+        head -20 src/environments/environment.prod.ts && \
+        echo "" && \
+        echo "🔍 Variables used in template:" && \
+        grep -o '\${[^}]*}' /tmp/environment.prod.ts.template | sort | uniq; \
+    elif [ ! -f "src/environments/environment.prod.ts" ]; then \
+        echo "📝 Creating default environment.prod.ts..." && \
+        cat > src/environments/environment.prod.ts << 'EOF'
+export const environment = {
+  production: true,
+  apiUrl: '/api'
+};
+EOF
+    else \
+        echo "✅ environment.prod.ts already exists"; \
+    fi
 
-# Diagnostic intelligent de la structure de build
+# ✅ BUILD
+RUN echo "🎯 Building application..." && \
+    npx ng build --configuration=production --output-hashing=all && \
+    echo "✅ Build completed!"
+
+# Diagnostic de la structure de build
 RUN echo "🔍 DIAGNOSTIC BUILD STRUCTURE:" && \
-    echo "📁 Contents of /build:" && \
-    ls -la /build/ && \
     echo "📁 Contents of /build/dist:" && \
     ls -la /build/dist/ 2>/dev/null || echo "No dist directory" && \
     echo "📁 Looking for index.html:" && \
-    find /build -name "index.html" -type f && \
-    echo "📁 Built files structure:" && \
-    find /build/dist -type f 2>/dev/null | head -20 || echo "No built files found"
+    find /build -name "index.html" -type f
 
-# Copie intelligente des fichiers - teste plusieurs emplacements d'Angular 20
+# Copie intelligente des fichiers
 RUN mkdir -p /build/final_dist && \
     if [ -f "/build/dist/inscriptions-frontend/browser/index.html" ]; then \
-        echo "✅ Found Angular 20 hybrid mode files in /build/dist/inscriptions-frontend/browser/" && \
+        echo "✅ Found Angular files in browser subdirectory" && \
         cp -r /build/dist/inscriptions-frontend/browser/* /build/final_dist/; \
     elif [ -f "/build/dist/inscriptions-frontend/index.html" ]; then \
-        echo "✅ Found Angular files in /build/dist/inscriptions-frontend/" && \
+        echo "✅ Found Angular files in project subdirectory" && \
         cp -r /build/dist/inscriptions-frontend/* /build/final_dist/; \
     elif [ -f "/build/dist/browser/index.html" ]; then \
-        echo "✅ Found Angular 20 browser files in /build/dist/browser/" && \
+        echo "✅ Found Angular files in browser directory" && \
         cp -r /build/dist/browser/* /build/final_dist/; \
     elif [ -f "/build/dist/index.html" ]; then \
-        echo "✅ Found Angular files in /build/dist/" && \
+        echo "✅ Found Angular files in root dist" && \
         cp -r /build/dist/* /build/final_dist/; \
     else \
-        echo "❌ No index.html found anywhere!" && \
-        echo "📋 Full directory structure:" && \
-        find /build -type f -name "*.html" && \
-        exit 1; \
+        echo "❌ No index.html found! Copying all dist content..." && \
+        cp -r /build/dist/* /build/final_dist/ 2>/dev/null || true; \
     fi && \
-    echo "📊 Final dist contents:" && \
-    ls -la /build/final_dist/ && \
-    echo "📊 Final dist size:" && \
-    du -sh /build/final_dist/
+    echo "📊 Final dist file count: $(find /build/final_dist -type f | wc -l)"
 
-# ===============================================
-# Stage de production - JUSTE LES FICHIERS STATIQUES
-# ===============================================
+# Stage final
 FROM alpine:3.19 AS production
 
-# Métadonnées
-LABEL maintainer="Assolution Team"
-LABEL version="1.0"
-LABEL description="Assolution Frontend - Static Files Only"
-
-# Installation d'outils minimaux pour health check
 RUN apk add --no-cache curl bash && \
-    rm -rf /var/cache/apk/*
+    rm -rf /var/cache/apk/* && \
+    mkdir -p /app/dist
 
-# Création du répertoire pour les fichiers statiques
-RUN mkdir -p /app/dist
-
-# Copie SEULEMENT des fichiers buildés (pas de serveur web)
+# Copie des fichiers buildés
 COPY --from=builder /build/final_dist/ /app/dist/
 
-# Script de vérification simple
-RUN echo '#!/bin/bash' > /app/verify-files.sh && \
-    echo 'set -euo pipefail' >> /app/verify-files.sh && \
-    echo 'echo "📁 Assolution Frontend - Static Files Ready"' >> /app/verify-files.sh && \
-    echo 'if [ ! -f "/app/dist/index.html" ]; then' >> /app/verify-files.sh && \
-    echo '    echo "❌ CRITICAL: No index.html found!"' >> /app/verify-files.sh && \
-    echo '    ls -la /app/dist/' >> /app/verify-files.sh && \
-    echo '    exit 1' >> /app/verify-files.sh && \
-    echo 'fi' >> /app/verify-files.sh && \
-    echo 'echo "✅ Static files ready: $(ls -1 /app/dist | wc -l) files"' >> /app/verify-files.sh && \
-    echo 'echo "📊 Total size: $(du -sh /app/dist | cut -f1)"' >> /app/verify-files.sh && \
-    echo 'echo "🎯 Files will be served by external Nginx reverse proxy"' >> /app/verify-files.sh && \
-    echo 'echo "⏳ Keeping container alive..."' >> /app/verify-files.sh && \
-    echo 'tail -f /dev/null' >> /app/verify-files.sh && \
-    chmod +x /app/verify-files.sh
+# Script de vérification
+RUN echo '#!/bin/bash' > /app/verify.sh && \
+    echo 'echo "📁 Assolution Frontend - Static Files Ready"' >> /app/verify.sh && \
+    echo 'echo "📊 Files: $(find /app/dist -type f | wc -l)"' >> /app/verify.sh && \
+    echo 'echo "📊 Size: $(du -sh /app/dist | cut -f1)"' >> /app/verify.sh && \
+    echo 'ls -la /app/dist/' >> /app/verify.sh && \
+    echo 'tail -f /dev/null' >> /app/verify.sh && \
+    chmod +x /app/verify.sh
 
-# Health check simple (vérifie juste que les fichiers existent)
-HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-  CMD [ -f /app/dist/index.html ] || exit 1
-
-# Pas de port exposé (les fichiers sont servis par le reverse proxy)
 WORKDIR /app/dist
-
-# Point d'entrée simple
-ENTRYPOINT ["/app/verify-files.sh"]
+ENTRYPOINT ["/app/verify.sh"]

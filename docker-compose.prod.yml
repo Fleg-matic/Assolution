@@ -83,8 +83,8 @@ services:
   # ✅ FRONTEND - Init Container (build et copie les fichiers)
   frontend-builder:
     build:
-      context: ./inscriptions/inscriptions-frontend
-      dockerfile: Dockerfile.prod
+      context: .  # ✅ Contexte à la racine pour accéder à config-templates/
+      dockerfile: ./inscriptions/inscriptions-frontend/Dockerfile.prod
     container_name: assolution-frontend-builder
     restart: "no"  # Run once only
     volumes:
@@ -96,9 +96,22 @@ services:
         cp -r /app/dist/* /tmp/dist/ &&
         echo '✅ Files copied successfully!' &&
         ls -la /tmp/dist/ &&
-        echo '📊 Total files: $$(ls -1 /tmp/dist | wc -l)' &&
+        echo '📊 Total files: $(ls -1 /tmp/dist | wc -l)' &&
         echo '🎯 Frontend build completed'
       "
+    environment:
+      # ✅ Variables d'environnement pour envsubst
+      - FRONTEND_API_URL=${FRONTEND_API_URL:-/api}
+      - FRONTEND_BASE_URL=${FRONTEND_BASE_URL:-}
+      - STRIPE_PUBLISHABLE_KEY_PROD=${STRIPE_PUBLISHABLE_KEY_PROD:-pk_test_placeholder}
+      - ENABLE_ANALYTICS=${ENABLE_ANALYTICS:-false}
+      - ENABLE_HTTPS_REDIRECT=${ENABLE_HTTPS_REDIRECT:-false}
+      - SUPPORT_EMAIL=${SUPPORT_EMAIL:-support@assolution.com}
+      - SALES_EMAIL=${SALES_EMAIL:-contact@assolution.com}
+      - SUPPORT_PHONE=${SUPPORT_PHONE:-+33 1 XX XX XX XX}
+      - COOKIE_DOMAIN=${COOKIE_DOMAIN:-localhost}
+      - COOKIE_SECURE=${COOKIE_SECURE:-false}
+      - GOOGLE_ANALYTICS_ID=${GOOGLE_ANALYTICS_ID:-}
     networks:
       - assolution-prod-network
     deploy:
