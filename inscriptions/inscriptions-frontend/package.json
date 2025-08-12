@@ -156,7 +156,6 @@
     "lint-staged": "^14.0.1",
     "prettier": "^3.1.0",
     "rimraf": "^5.0.5",
-    "typescript": "~5.8.0",
     "webpack-bundle-analyzer": "^4.10.2"
   },
   "engines": {
@@ -168,5 +167,8 @@
     "Firefox >= 110",
     "Safari >= 16",
     "Edge >= 115"
-  ]
+  ],
+  "overrides": {
+    "typescript": "5.8.3"
+  }
 }
