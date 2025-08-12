@@ -9,7 +9,7 @@ export const environment = {
   development: false,
 
   // Configuration API
-  apiUrl: '${FRONTEND_API_URL}',
+  apiUrl: '${FRONTEND_API_URL:-/api}',
   apiTimeout: 30000,
 
   // Configuration de l'application
@@ -17,7 +17,7 @@ export const environment = {
   appVersion: '1.0.0',
 
   // URLs et endpoints
-  baseUrl: '${FRONTEND_BASE_URL}',
+  baseUrl: '${FRONTEND_BASE_URL:-}',
   assetsUrl: '/assets',
 
   // Configuration d'authentification
@@ -38,14 +38,14 @@ export const environment = {
     registration: true,
     payment: true,
     notifications: true,
-    analytics: ${ENABLE_ANALYTICS},
+    analytics: ${ENABLE_ANALYTICS:-false},
     errorReporting: true,
     maintenanceMode: false,
   },
 
   // Configuration de paiement (Stripe)
   payment: {
-    stripePublishableKey: '${STRIPE_PUBLISHABLE_KEY_PROD}',
+    stripePublishableKey: '${STRIPE_PUBLISHABLE_KEY_PROD:-pk_test_placeholder}',
     currency: 'EUR',
     country: 'FR',
   },
@@ -72,7 +72,7 @@ export const environment = {
   security: {
     enableCSP: true,
     enableXSRFProtection: true,
-    enableHttpsRedirect: ${ENABLE_HTTPS_REDIRECT},
+    enableHttpsRedirect: ${ENABLE_HTTPS_REDIRECT:-false},
     maxUploadSize: 20971520,
     allowedFileTypes: ['.pdf', '.jpg', '.jpeg', '.png', '.doc', '.docx'],
   },
@@ -99,26 +99,26 @@ export const environment = {
 
   // URLs de contact et support
   contact: {
-    supportEmail: '${SUPPORT_EMAIL}',
-    salesEmail: '${SALES_EMAIL}',
-    phoneNumber: '${SUPPORT_PHONE}',
+    supportEmail: '${SUPPORT_EMAIL:-support@assolution.com}',
+    salesEmail: '${SALES_EMAIL:-contact@assolution.com}',
+    phoneNumber: '${SUPPORT_PHONE:-+33 1 XX XX XX XX}',
     address: 'France',
   },
 
   // Configuration des cookies
   cookies: {
-    domain: '${COOKIE_DOMAIN}',
-    secure: ${COOKIE_SECURE},
+    domain: '${COOKIE_DOMAIN:-localhost}',
+    secure: ${COOKIE_SECURE:-false},
     sameSite: 'Lax',
     expires: 30,
   },
 
   // Analytics et tracking
   analytics: {
-    googleAnalyticsId: '${GOOGLE_ANALYTICS_ID}',
-    enableTracking: ${ENABLE_ANALYTICS},
-    trackPageViews: ${ENABLE_ANALYTICS},
-    trackEvents: ${ENABLE_ANALYTICS},
+    googleAnalyticsId: '${GOOGLE_ANALYTICS_ID:-}',
+    enableTracking: ${ENABLE_ANALYTICS:-false},
+    trackPageViews: ${ENABLE_ANALYTICS:-false},
+    trackEvents: ${ENABLE_ANALYTICS:-false},
   },
 
   // Configuration de développement (désactivées en prod)
@@ -170,6 +170,6 @@ export const environment = {
     enabled: false,
     message: 'Maintenance en cours. Veuillez réessayer plus tard.',
     estimatedTime: '',
-    contactInfo: '${SUPPORT_EMAIL}',
+    contactInfo: '${SUPPORT_EMAIL:-support@assolution.com}',
   },
 };

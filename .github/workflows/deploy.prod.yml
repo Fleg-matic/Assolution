@@ -146,6 +146,35 @@ jobs:
                     -Dsonar.coverage.jacoco.xmlReportPaths=target/site/jacoco/jacoco.xml \
                     -Dsonar.junit.reportPaths=target/surefire-reports
 
+            - name: 🔍 Debug Environment Variables
+              run: |
+                  echo "🔍 Checking environment variables availability..."
+                  echo "FRONTEND_API_URL: '${{ secrets.FRONTEND_API_URL }}'"
+                  echo "FRONTEND_BASE_URL: '${{ secrets.FRONTEND_BASE_URL }}'"
+                  echo "STRIPE_PUBLISHABLE_KEY_PROD: '${{ secrets.STRIPE_PUBLISHABLE_KEY_PROD }}'"
+                  echo "ENABLE_ANALYTICS: '${{ secrets.ENABLE_ANALYTICS }}'"
+                  echo "ENABLE_HTTPS_REDIRECT: '${{ secrets.ENABLE_HTTPS_REDIRECT }}'"
+                  echo "SUPPORT_EMAIL: '${{ secrets.SUPPORT_EMAIL }}'"
+                  echo "SALES_EMAIL: '${{ secrets.SALES_EMAIL }}'"
+                  echo "SUPPORT_PHONE: '${{ secrets.SUPPORT_PHONE }}'"
+                  echo "COOKIE_DOMAIN: '${{ secrets.COOKIE_DOMAIN }}'"
+                  echo "COOKIE_SECURE: '${{ secrets.COOKIE_SECURE }}'"
+                  echo "GOOGLE_ANALYTICS_ID: '${{ secrets.GOOGLE_ANALYTICS_ID }}'"
+
+                  echo ""
+                  echo "🔍 Checking if variables are properly set..."
+                  if [ -z "${{ secrets.FRONTEND_API_URL }}" ]; then
+                    echo "❌ FRONTEND_API_URL is not set in GitHub secrets"
+                  else
+                    echo "✅ FRONTEND_API_URL is set"
+                  fi
+
+                  if [ -z "${{ secrets.ENABLE_ANALYTICS }}" ]; then
+                    echo "❌ ENABLE_ANALYTICS is not set in GitHub secrets"
+                  else
+                    echo "✅ ENABLE_ANALYTICS is set"
+                  fi
+
             - name: 🔧 Setup E2E environment and Cypress
               env:
                   # Variables pour les tests E2E
@@ -178,6 +207,7 @@ jobs:
                   EMAIL_HOST_PROD: ${{ secrets.EMAIL_HOST_PROD }}
                   EMAIL_USER_PROD: ${{ secrets.EMAIL_USER_PROD }}
                   EMAIL_PASSWORD_PROD: ${{ secrets.EMAIL_PASSWORD_PROD }}
+                  # ✅ Variables Frontend pour Docker build
                   FRONTEND_API_URL: ${{ secrets.FRONTEND_API_URL }}
                   FRONTEND_BASE_URL: ${{ secrets.FRONTEND_BASE_URL }}
                   STRIPE_PUBLISHABLE_KEY_PROD: ${{ secrets.STRIPE_PUBLISHABLE_KEY_PROD }}
@@ -198,6 +228,11 @@ jobs:
                   CYPRESS_TEST_ADMIN_EMAIL: ${{ secrets.CYPRESS_TEST_ADMIN_EMAIL }}
                   CYPRESS_TEST_ADMIN_PASSWORD: ${{ secrets.CYPRESS_TEST_ADMIN_PASSWORD }}
               run: |
+                  echo "🔍 Debug: Checking environment variables before Docker build..."
+                  echo "FRONTEND_API_URL: $FRONTEND_API_URL"
+                  echo "ENABLE_ANALYTICS: $ENABLE_ANALYTICS"
+                  echo "COOKIE_SECURE: $COOKIE_SECURE"
+
                   echo "🚀 Starting E2E test environment..."
 
                   # Nettoyer les containers existants
@@ -208,7 +243,7 @@ jobs:
                   sudo lsof -ti:5432 | xargs -r sudo kill -9 || true
                   sudo lsof -ti:8080 | xargs -r sudo kill -9 || true
 
-                  # Démarrer les services
+                  # Démarrer les services avec les variables d'environnement
                   echo "🔄 Starting services with docker-compose.prod.yml..."
                   docker compose -f docker-compose.prod.yml up -d --build
 
