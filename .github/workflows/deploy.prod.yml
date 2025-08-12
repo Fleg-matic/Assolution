@@ -217,10 +217,39 @@ jobs:
                   echo "🌐 Base URL: $CYPRESS_BASE_URL"
                   echo "🔌 API URL: $CYPRESS_API_URL"
 
+            - name: 🔍 Debug Database Variables
+              env:
+                  DB_PASSWORD_PROD: ${{ secrets.DB_PASSWORD_PROD }}
+                  DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+                  JWT_SECRET_PROD: ${{ secrets.JWT_SECRET_PROD }}
+              run: |
+                  echo "🔍 Checking database environment variables..."
+
+                  if [ -z "$DB_PASSWORD_PROD" ] && [ -z "$DB_PASSWORD" ]; then
+                    echo "❌ No database password found in secrets!"
+                    echo "💡 Please set either DB_PASSWORD_PROD or DB_PASSWORD in GitHub secrets"
+                    exit 1
+                  fi
+
+                  if [ -n "$DB_PASSWORD_PROD" ]; then
+                    echo "✅ DB_PASSWORD_PROD is set (length: ${#DB_PASSWORD_PROD})"
+                  fi
+
+                  if [ -n "$DB_PASSWORD" ]; then
+                    echo "✅ DB_PASSWORD is set (length: ${#DB_PASSWORD})"
+                  fi
+
+                  if [ -z "$JWT_SECRET_PROD" ]; then
+                    echo "⚠️ JWT_SECRET_PROD is not set"
+                  else
+                    echo "✅ JWT_SECRET_PROD is set (length: ${#JWT_SECRET_PROD})"
+                  fi
+
             - name: 🔬 E2E Tests
               env:
                   # Variables d'environnement pour Docker Compose E2E
                   DB_PASSWORD_PROD: ${{ secrets.DB_PASSWORD_PROD }}
+                  DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
                   JWT_SECRET_PROD: ${{ secrets.JWT_SECRET_PROD }}
                   STRIPE_SECRET_KEY_PROD: ${{ secrets.STRIPE_SECRET_KEY_PROD }}
                   STRIPE_WEBHOOK_SECRET_PROD: ${{ secrets.STRIPE_WEBHOOK_SECRET_PROD }}
@@ -248,6 +277,49 @@ jobs:
                   CYPRESS_TEST_ADMIN_EMAIL: ${{ secrets.CYPRESS_TEST_ADMIN_EMAIL }}
                   CYPRESS_TEST_ADMIN_PASSWORD: ${{ secrets.CYPRESS_TEST_ADMIN_PASSWORD }}
               run: |
+                  echo "🚀 Starting E2E test environment..."
+
+                  # Nettoyer les containers existants
+                  docker compose -f docker-compose.prod.yml down --remove-orphans || true
+                  docker system prune -f || true
+
+                  # Vérifier que les ports sont libres
+                  sudo lsof -ti:5432 | xargs -r sudo kill -9 || true
+                  sudo lsof -ti:8080 | xargs -r sudo kill -9 || true
+
+                  # 🔍 DIAGNOSTIC POSTGRESQL AMÉLIORÉ
+                  echo "🔍 Starting PostgreSQL first for diagnosis..."
+                  docker compose -f docker-compose.prod.yml up postgres -d
+
+                  echo "⏳ Waiting 60 seconds for PostgreSQL..."
+                  sleep 60
+
+                  echo "📋 PostgreSQL container status:"
+                  docker compose -f docker-compose.prod.yml ps postgres
+
+                  echo "📋 PostgreSQL logs (last 50 lines):"
+                  docker compose -f docker-compose.prod.yml logs postgres --tail=50
+
+                  echo "🔍 PostgreSQL health check:"
+                  docker compose -f docker-compose.prod.yml exec postgres pg_isready -U assolution_user -d assolution_prod || echo "❌ PostgreSQL not ready"
+
+                  echo "🔍 PostgreSQL environment variables:"
+                  docker compose -f docker-compose.prod.yml exec postgres env | grep POSTGRES || echo "❌ Cannot access container"
+
+                  # Si PostgreSQL fonctionne, continuer avec les autres services
+                  if docker compose -f docker-compose.prod.yml exec postgres pg_isready -U assolution_user -d assolution_prod; then
+                    echo "✅ PostgreSQL is ready, starting other services..."
+                    docker compose -f docker-compose.prod.yml up -d --build
+                  else
+                    echo "❌ PostgreSQL failed to start, showing detailed logs:"
+                    docker compose -f docker-compose.prod.yml logs postgres
+                    exit 1
+                  fi
+
+                  # Attendre que les services soient prêts
+                  echo "⏳ Waiting for all services to be ready..."
+                  sleep 60
+
                   echo "🔍 Debug: Checking environment variables before Docker build..."
                   echo "FRONTEND_API_URL: $FRONTEND_API_URL"
                   echo "ENABLE_ANALYTICS: $ENABLE_ANALYTICS"
