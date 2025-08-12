@@ -42,7 +42,7 @@ RUN echo "🔧 Processing environment variables from template..." && \
         cat > src/environments/environment.prod.ts << 'EOF'
 export const environment = {
   production: true,
-  apiUrl: '/api'
+  apiUrl: '${FRONTEND_API_URL}'
 };
 EOF
     else \
