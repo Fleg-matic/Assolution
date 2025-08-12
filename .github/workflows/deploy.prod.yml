@@ -332,6 +332,9 @@ jobs:
                     
                     echo "✅ Backend is healthy! Starting remaining services..."
                     docker compose -f docker-compose.prod.yml up -d
+
+                    echo "🔍 Checking backend start script:"
+                    docker compose -f docker-compose.prod.yml exec backend cat /app/start-prod.sh || echo "Cannot read script"
                     
                   else
                     echo "❌ PostgreSQL failed to start"

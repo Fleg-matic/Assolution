@@ -62,9 +62,9 @@ COPY --chown=appuser:appuser <<EOF /app/start-prod.sh
 set -euo pipefail
 
 echo "🏭 Starting Assolution Backend (Production)"
-echo "📊 Java Version: \$(java -version 2>&1 | head -n 1)"
-echo "🔧 Active Profile: \${SPRING_PROFILES_ACTIVE}"
-echo "💾 Database Host: \${DB_HOST}"
+echo "📊 Java Version: \$(java -version 2>&1 | head -1)"
+echo "🔧 Active Profile: \${SPRING_PROFILES_ACTIVE:-prod}"
+echo "💾 Database Host: \${DB_HOST:-localhost}"
 echo "🚀 JVM Options: \${JAVA_OPTS}"
 
 # Vérification des variables d'environnement critiques
@@ -76,7 +76,7 @@ echo "🚀 JVM Options: \${JAVA_OPTS}"
 echo "⏳ Waiting for database connection..."
 timeout=60
 counter=0
-while ! nc -z \${DB_HOST} \${DB_PORT:-5432}; do
+while ! nc -z \${DB_HOST:-postgres} \${DB_PORT:-5432}; do
     if [ \$counter -ge \$timeout ]; then
         echo "❌ Database connection timeout after \$timeout seconds"
         exit 1
@@ -95,13 +95,12 @@ fi
 echo "🚀 Starting application..."
 
 # Démarrage avec optimisations JVM pour production
-exec java \
-    \${JAVA_OPTS} \
+exec java ${JAVA_OPTS} \
     -Djava.security.egd=file:/dev/./urandom \
-    -Dspring.profiles.active=\${SPRING_PROFILES_ACTIVE} \
+    -Dspring.profiles.active=\${SPRING_PROFILES_ACTIVE:-prod} \
     -Dlogging.file.name=/app/logs/application.log \
     -Dlogging.pattern.file="%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n" \
-    -jar app.jar
+    -jar /app/app.jar
 EOF
 
 RUN chmod +x /app/start-prod.sh
