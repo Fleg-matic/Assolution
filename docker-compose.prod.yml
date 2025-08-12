@@ -55,7 +55,7 @@ services:
       JAVA_OPTS: "-Xmx512m -Xms256m -XX:+UseG1GC"
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${DB_NAME:-assolution_prod}
       SPRING_DATASOURCE_USERNAME: ${DB_USER:-assolution_user}
-      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD}
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD_PROD:-${DB_PASSWORD:-changeme123}}
     depends_on:
       postgres:
         condition: service_healthy
@@ -68,7 +68,7 @@ services:
       interval: 30s
       timeout: 10s
       retries: 5
-      start_period: 60s
+      start_period: 120s
     logging:
       driver: "json-file"
       options:
