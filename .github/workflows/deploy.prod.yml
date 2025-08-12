@@ -60,24 +60,30 @@ jobs:
             - name: 🔐 Generate environment.prod.ts from template
               working-directory: ./inscriptions/inscriptions-frontend
               env:
-                  # ✅ Variables d'environnement pour le template
-                  FRONTEND_API_URL: ${{ secrets.FRONTEND_API_URL }}
-                  FRONTEND_BASE_URL: ${{ secrets.FRONTEND_BASE_URL }}
-                  STRIPE_PUBLISHABLE_KEY_PROD: ${{ secrets.STRIPE_PUBLISHABLE_KEY_PROD }}
-                  ENABLE_ANALYTICS: ${{ secrets.ENABLE_ANALYTICS }}
-                  ENABLE_HTTPS_REDIRECT: ${{ secrets.ENABLE_HTTPS_REDIRECT }}
-                  SUPPORT_EMAIL: ${{ secrets.SUPPORT_EMAIL }}
-                  SALES_EMAIL: ${{ secrets.SALES_EMAIL }}
-                  SUPPORT_PHONE: ${{ secrets.SUPPORT_PHONE }}
-                  COOKIE_DOMAIN: ${{ secrets.COOKIE_DOMAIN }}
-                  COOKIE_SECURE: ${{ secrets.COOKIE_SECURE }}
-                  GOOGLE_ANALYTICS_ID: ${{ secrets.GOOGLE_ANALYTICS_ID }}
+                  # ✅ Variables d'environnement disponibles pour envsubst
+                  FRONTEND_API_URL: ${{ secrets.FRONTEND_API_URL || '/api' }}
+                  FRONTEND_BASE_URL: ${{ secrets.FRONTEND_BASE_URL || '' }}
+                  STRIPE_PUBLISHABLE_KEY_PROD: ${{ secrets.STRIPE_PUBLISHABLE_KEY_PROD || 'pk_test_placeholder' }}
+                  ENABLE_ANALYTICS: ${{ secrets.ENABLE_ANALYTICS || 'false' }}
+                  ENABLE_HTTPS_REDIRECT: ${{ secrets.ENABLE_HTTPS_REDIRECT || 'false' }}
+                  SUPPORT_EMAIL: ${{ secrets.SUPPORT_EMAIL || 'support@assolution.com' }}
+                  SALES_EMAIL: ${{ secrets.SALES_EMAIL || 'contact@assolution.com' }}
+                  SUPPORT_PHONE: ${{ secrets.SUPPORT_PHONE || '+33 1 XX XX XX XX' }}
+                  COOKIE_DOMAIN: ${{ secrets.COOKIE_DOMAIN || 'localhost' }}
+                  COOKIE_SECURE: ${{ secrets.COOKIE_SECURE || 'false' }}
+                  GOOGLE_ANALYTICS_ID: ${{ secrets.GOOGLE_ANALYTICS_ID || '' }}
               run: |
                   echo "🔍 Checking template existence..."
                   if [ ! -f "../../config-templates/environment.prod.ts.template" ]; then
                     echo "❌ Template not found!"
                     exit 1
                   fi
+
+                  echo "🔍 Debug: Environment variables:"
+                  echo "FRONTEND_API_URL: $FRONTEND_API_URL"
+                  echo "ENABLE_ANALYTICS: $ENABLE_ANALYTICS"
+                  echo "COOKIE_SECURE: $COOKIE_SECURE"
+                  echo "STRIPE_PUBLISHABLE_KEY_PROD: ${STRIPE_PUBLISHABLE_KEY_PROD:0:20}..." # Masquer la clé
 
                   echo "📝 Generating environment.prod.ts from template..."
                   mkdir -p src/environments
@@ -90,18 +96,32 @@ jobs:
                   echo "🔍 First 10 lines:"
                   head -10 src/environments/environment.prod.ts
 
-                  # Vérification de la syntaxe TypeScript
+                  # Vérification critique des substitutions
                   echo "🔍 Checking TypeScript syntax..."
+                  if grep -q '\${' src/environments/environment.prod.ts; then
+                    echo "❌ Variables not properly substituted!"
+                    echo "🔍 Unsubstituted variables:"
+                    grep -o '\${[^}]*}' src/environments/environment.prod.ts | sort | uniq
+                    echo "Content preview:"
+                    head -20 src/environments/environment.prod.ts
+                    exit 1
+                  fi
+
+                  # Vérification de syntaxe TypeScript
                   node -e "
                     const fs = require('fs');
                     const content = fs.readFileSync('src/environments/environment.prod.ts', 'utf8');
-                    if (content.includes('undefined') || content.includes('\${')) {
-                      console.error('❌ Variables not properly substituted!');
-                      console.log('Content preview:', content.substring(0, 500));
+                    
+                    // Vérifier qu'il n'y a pas de valeurs vides problématiques
+                    if (content.includes(': ,') || content.includes(': undefined')) {
+                      console.error('❌ Empty values detected!');
                       process.exit(1);
                     }
+                    
                     console.log('✅ File looks good');
                   "
+
+                  echo "✅ Environment.prod.ts ready for build"
 
             - name: 📦 Frontend Tests & Build
               working-directory: ./inscriptions/inscriptions-frontend
