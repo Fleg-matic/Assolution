@@ -126,21 +126,18 @@ jobs:
             - name: 📦 Frontend Tests & Build
               working-directory: ./inscriptions/inscriptions-frontend
               run: |
-                  echo "🔧 Fixing TypeScript version conflicts..."
+                  echo "🔧 Installing Angular 20.1.6 dependencies..."
                   npm cache clean --force
                   rm -rf node_modules package-lock.json
 
-                  # Installation avec versions exactes compatibles
+                  # ✅ Installation simple avec versions cohérentes
                   npm install
-                  npm install --save-dev --save-exact @angular/cli@20.1.5
-                  npm install --save-dev --save-exact @angular-devkit/build-angular@20.1.5
-                  npm install --save-dev --save-exact @angular/compiler-cli@20.1.5
-                  npm install --save-dev --save-exact typescript@5.8.3
 
                   echo "📊 Versions installées:"
                   echo "TypeScript: $(npx tsc --version)"
                   echo "Angular CLI: $(npx ng version --skip-git | grep "Angular CLI" || echo "CLI OK")"
 
+                  # ✅ Tests et build
                   npm run test:ci
                   npm run build:prod
 
