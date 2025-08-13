@@ -336,8 +336,7 @@ jobs:
                     echo "📋 Check if JAR is executable:"
                     docker compose -f docker-compose.prod.yml exec backend file /app/app.jar || echo "Cannot check JAR file"
                     
-                    echo "📋 Test JAR manually:"
-                    docker compose -f docker-compose.prod.yml exec backend java -jar /app/app.jar --help || echo "JAR execution failed"
+                    echo "📋 Application already running, skipping manual JAR test"
 
                     echo "🔍 Backend health endpoint test:"
                     timeout 30 bash -c 'until curl -f http://localhost:8080/api/actuator/health; do echo "Trying backend health..."; sleep 5; done' || {

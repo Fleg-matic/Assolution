@@ -48,7 +48,7 @@ logging.level.org.hibernate.type.descriptor.sql.BasicBinder=WARN
 logging.pattern.console=%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{40} - %msg%n
 
 # ===============================
-# ACTUATOR - PRODUCTION (SECURISE)
+# ACTUATOR - PRODUCTION (SECURISE MAIS HEALTH PUBLIC)
 # ===============================
 management.endpoints.web.exposure.include=health,info,metrics
 management.endpoint.health.show-details=when-authorized
@@ -64,6 +64,10 @@ management.health.diskspace.threshold=1GB
 management.endpoints.web.base-path=/actuator
 management.server.port=8080
 management.endpoint.health.cache.time-to-live=10s
+
+# ✅ PERMETTRE L'ACCÈS PUBLIC AU HEALTH CHECK
+management.security.enabled=false
+management.endpoint.health.enabled=true
 
 # ===============================
 # SECURITY JWT - PRODUCTION
