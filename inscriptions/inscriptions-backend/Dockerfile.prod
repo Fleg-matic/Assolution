@@ -56,7 +56,8 @@ RUN groupadd -g 1001 appuser && \
 WORKDIR /app
 RUN mkdir -p /app/logs && \
     chown -R appuser:appuser /app && \
-    chmod -R 755 /app
+    chmod -R 755 /app && \
+    chmod -R 777 /app/logs
 
 # Copier le JAR avec les bonnes permissions
 COPY --from=builder --chown=appuser:appuser /build/app.jar /app/app.jar

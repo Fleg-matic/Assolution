@@ -80,7 +80,7 @@ services:
     networks:
       - assolution-prod-network
     volumes:
-      - ./logs:/app/logs
+      - backend_logs:/app/logs  # ✅ Utiliser un volume Docker au lieu d'un bind mount
     ports:
       - "8080:8080"  # ✅ Exposer le port pour les tests
     healthcheck:
@@ -189,3 +189,5 @@ volumes:
     name: assolution-postgres-prod-data
   frontend_static_files:
     name: assolution-frontend-static
+  backend_logs:
+    name: assolution-backend-logs
