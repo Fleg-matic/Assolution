@@ -339,13 +339,21 @@ jobs:
                     echo "📋 Application already running, skipping manual JAR test"
 
                     echo "🔍 Backend health endpoint test:"
-                    timeout 30 bash -c 'until curl -f http://localhost:8080/api/actuator/health; do echo "Trying backend health..."; sleep 5; done' || {
-                      echo "❌ Backend health check failed"
-                      echo "🔍 Final backend container inspection:"
-                      docker compose -f docker-compose.prod.yml exec backend ls -la /app/ || echo "Cannot access backend filesystem"
-                      docker compose -f docker-compose.prod.yml exec backend java -version || echo "Java not accessible"
-                      exit 1
-                    }
+                    # Test avec authentification admin
+                    if curl -f -u admin:admin123 http://localhost:8080/actuator/health; then
+                      echo "✅ Backend is healthy with admin authentication"
+                    else
+                      echo "⚠️ Testing without authentication..."
+                      # Fallback: test sans auth (au cas où la config aurait changé)
+                      if curl -f http://localhost:8080/actuator/health; then
+                        echo "✅ Backend is healthy without authentication"
+                      else
+                        echo "❌ Backend health check failed"
+                        echo "🔍 Testing basic connectivity:"
+                        curl -v http://localhost:8080/ || echo "Cannot connect to backend at all"
+                        exit 1
+                      fi
+                    fi
                     
                     echo "✅ Backend is healthy! Starting remaining services..."
                     docker compose -f docker-compose.prod.yml up -d
@@ -368,11 +376,15 @@ jobs:
 
                   echo "🔍 Testing all endpoints..."
 
-                  # Test Backend
-                  if curl -f http://localhost:8080/api/actuator/health; then
-                    echo "✅ Backend is responding"
+                  # Test Backend avec authentification
+                  if curl -f -u admin:admin123 http://localhost:8080/actuator/health; then
+                    echo "✅ Backend is responding with authentication"
+                  elif curl -f http://localhost:8080/actuator/health; then
+                    echo "✅ Backend is responding without authentication"
                   else
                     echo "❌ Backend still not responding"
+                    echo "🔍 Testing basic connectivity:"
+                    curl -v http://localhost:8080/ || echo "Cannot connect to backend at all"
                     exit 1
                   fi
 
@@ -508,16 +520,21 @@ jobs:
 
                   echo "🔍 Running comprehensive health checks..."
 
-                  # Test API Health
+                  # Test API Health avec authentification
                   for i in {1..15}; do
-                    if curl -f http://${{ secrets.SSH_HOST }}/api/actuator/health; then
-                      echo "✅ API health check passed"
+                    if curl -f -u admin:admin123 http://${{ secrets.SSH_HOST }}/actuator/health; then
+                      echo "✅ API health check passed with authentication"
+                      break
+                    elif curl -f http://${{ secrets.SSH_HOST }}/actuator/health; then
+                      echo "✅ API health check passed without authentication"
                       break
                     fi
                     echo "⏳ Waiting for API... (attempt $i/15)"
                     sleep 10
                     if [ $i -eq 15 ]; then
                       echo "❌ API health check failed after 15 attempts"
+                      echo "🔍 Testing basic connectivity to production server:"
+                      curl -v http://${{ secrets.SSH_HOST }}/ || echo "Cannot connect to production server"
                       exit 1
                     fi
                   done
