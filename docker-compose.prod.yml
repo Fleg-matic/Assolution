@@ -48,7 +48,7 @@ services:
       DB_PORT: 5432
       DB_NAME: assolution_prod
       DB_USER: assolution_user
-      DB_PASSWORD: ${DB_PASSWORD_PROD}
+      DB_PASSWORD_PROD: ${DB_PASSWORD_PROD}
       
       # ✅ Variables Spring Boot directes (prioritaires)
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/assolution_prod
@@ -56,14 +56,14 @@ services:
       SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD_PROD}
       
       # ✅ Secrets de production
-      JWT_SECRET: ${JWT_SECRET_PROD}
-      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY_PROD}
-      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET_PROD}
+      JWT_SECRET_PROD: ${JWT_SECRET_PROD}
+      STRIPE_SECRET_KEY_PROD: ${STRIPE_SECRET_KEY_PROD}
+      STRIPE_WEBHOOK_SECRET_PROD: ${STRIPE_WEBHOOK_SECRET_PROD}
       
       # ✅ Configuration email
-      EMAIL_HOST: ${EMAIL_HOST_PROD}
-      EMAIL_USER: ${EMAIL_USER_PROD}
-      EMAIL_PASSWORD: ${EMAIL_PASSWORD_PROD}
+      EMAIL_HOST_PROD: ${EMAIL_HOST_PROD}
+      EMAIL_USER_PROD: ${EMAIL_USER_PROD}
+      EMAIL_PASSWORD_PROD: ${EMAIL_PASSWORD_PROD}
       EMAIL_BASE_URL: ${EMAIL_BASE_URL:-http://localhost}
       
       # ✅ CORS configuration
