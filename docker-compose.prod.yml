@@ -37,8 +37,8 @@ services:
   # Spring Boot Backend - Production
   backend:
     build:
-      context: ./inscriptions/inscriptions-backend
-      dockerfile: Dockerfile.prod
+      context: .  # ✅ Contexte à la racine du mono-repo
+      dockerfile: ./inscriptions/inscriptions-backend/Dockerfile.prod
     container_name: assolution-backend-prod
     restart: always
     environment:

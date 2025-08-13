@@ -3,9 +3,10 @@ FROM maven:3.9.6-eclipse-temurin-21 AS builder
 
 WORKDIR /build
 
-# Copier les fichiers de build
-COPY pom.xml .
-COPY src ./src
+# Copier le répertoire config-templates et les fichiers de build
+COPY config-templates/ ../config-templates/
+COPY inscriptions/inscriptions-backend/pom.xml .
+COPY inscriptions/inscriptions-backend/src ./src
 
 # Vérifier la structure du projet
 RUN echo "📁 Project structure:" && \
@@ -15,13 +16,15 @@ RUN echo "📁 Project structure:" && \
 
 # Générer le fichier application-prod.properties depuis le template
 RUN echo "📋 Generating application-prod.properties from template..." && \
-    if [ -f "../../config-templates/application-prod.properties.template" ]; then \
+    if [ -f "../config-templates/application-prod.properties.template" ]; then \
         echo "✅ Template found, copying to resources..." && \
-        cp ../../config-templates/application-prod.properties.template src/main/resources/application-prod.properties; \
+        cp ../config-templates/application-prod.properties.template src/main/resources/application-prod.properties; \
     else \
-        echo "❌ Template not found at ../../config-templates/application-prod.properties.template"; \
-        echo "📁 Available files in config-templates:"; \
-        ls -la ../../config-templates/ || echo "Directory not found"; \
+        echo "❌ Template not found at ../config-templates/application-prod.properties.template"; \
+        echo "📁 Available files in root:"; \
+        ls -la ../ || echo "Parent directory not found"; \
+        echo "📁 Looking for config-templates:"; \
+        find .. -name "config-templates" -type d 2>/dev/null || echo "config-templates directory not found"; \
         exit 1; \
     fi
 
