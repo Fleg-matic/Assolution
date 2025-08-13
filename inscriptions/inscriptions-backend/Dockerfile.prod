@@ -45,19 +45,20 @@ COPY --from=builder --chown=appuser:appuser /build/assolution-backend.jar /app/a
 RUN ls -la /app/app.jar && \
     echo "✅ JAR file is present"
 
-# Créer le script de démarrage corrigé
-RUN cat > /app/start-prod.sh << 'EOF'
+# ✅ Créer le script de démarrage avec COPY heredoc (syntaxe correcte)
+COPY --chown=appuser:appuser <<EOF /app/start-prod.sh
 #!/bin/bash
 
 echo "🏭 Starting Assolution Backend (Production)"
-echo "📊 Java Version: $(java -version 2>&1 | head -1)"
-echo "🔧 Active Profile: ${SPRING_PROFILES_ACTIVE:-prod}"
-echo "💾 Database Host: ${DB_HOST:-postgres}"
-echo "🚀 JVM Options: ${JAVA_OPTS}"
+echo "📊 Java Version: \$(java -version 2>&1 | head -1)"
+echo "🔧 Active Profile: \${SPRING_PROFILES_ACTIVE:-prod}"
+echo "💾 Database Host: \${DB_HOST:-postgres}"
+echo "🚀 JVM Options: \${JAVA_OPTS}"
 
 # Attendre la base de données
 echo "⏳ Waiting for database connection..."
-while ! nc -z ${DB_HOST:-postgres} ${DB_PORT:-5432}; do sleep 1
+while ! nc -z \${DB_HOST:-postgres} \${DB_PORT:-5432}; do
+  sleep 1
 done
 echo "✅ Database connection established!"
 
@@ -70,17 +71,16 @@ fi
 
 # Démarrer l'application Spring Boot avec la commande CORRECTE
 echo "🚀 Starting Spring Boot application..."
-echo "🔧 Command: java ${JAVA_OPTS} -jar /app/app.jar"
+echo "🔧 Command: java \${JAVA_OPTS} -jar /app/app.jar"
 
-exec java ${JAVA_OPTS} \
-    -Djava.security.egd=file:/dev/./urandom \
-    -Dspring.profiles.active=${SPRING_PROFILES_ACTIVE:-prod} \
+exec java \${JAVA_OPTS} \\
+    -Djava.security.egd=file:/dev/./urandom \\
+    -Dspring.profiles.active=\${SPRING_PROFILES_ACTIVE:-prod} \\
     -jar /app/app.jar
 EOF
 
 # Donner les permissions d'exécution
-RUN chmod +x /app/start-prod.sh && \
-    chown appuser:appuser /app/start-prod.sh
+RUN chmod +x /app/start-prod.sh
 
 # Utiliser l'utilisateur non-root
 USER appuser
