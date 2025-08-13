@@ -58,19 +58,19 @@ RUN mkdir -p /app/logs && \
 # Copier le JAR avec les bonnes permissions
 COPY --from=builder --chown=appuser:appuser /build/app.jar /app/app.jar
 
-# Créer le script de démarrage amélioré
-RUN cat > /app/start-prod.sh << 'EOF'
+# Créer le script de démarrage directement
+COPY --chown=appuser:appuser <<EOF /app/start-prod.sh
 #!/bin/bash
 set -e
 
 echo "🏭 Starting Assolution Backend (Production)"
-echo "📊 Java Version: $(java -version 2>&1 | head -1)"
-echo "🔧 Active Profile: ${SPRING_PROFILES_ACTIVE:-prod}"
-echo "💾 Database Host: ${DB_HOST:-postgres}"
-echo "🚀 JVM Options: ${JAVA_OPTS}"
+echo "📊 Java Version: \$(java -version 2>&1 | head -1)"
+echo "🔧 Active Profile: \${SPRING_PROFILES_ACTIVE:-prod}"
+echo "💾 Database Host: \${DB_HOST:-postgres}"
+echo "🚀 JVM Options: \${JAVA_OPTS}"
 
 # Vérifier les variables d'environnement critiques
-if [ -z "$DB_HOST" ] || [ -z "$DB_USER" ] || [ -z "$DB_PASSWORD" ]; then
+if [ -z "\$DB_HOST" ] || [ -z "\$DB_USER" ] || [ -z "\$DB_PASSWORD" ]; then
     echo "❌ Missing required database environment variables"
     echo "Required: DB_HOST, DB_USER, DB_PASSWORD"
     exit 1
@@ -80,44 +80,28 @@ fi
 echo "⏳ Waiting for database connection..."
 TIMEOUT=60
 COUNT=0
-while ! nc -z ${DB_HOST} ${DB_PORT:-5432}; do 
-    COUNT=$((COUNT + 1))
-    if [ $COUNT -gt $TIMEOUT ]; then
-        echo "❌ Database connection timeout after ${TIMEOUT} seconds"
+while ! nc -z \${DB_HOST} \${DB_PORT:-5432}; do 
+    COUNT=\$((COUNT + 1))
+    if [ \$COUNT -gt \$TIMEOUT ]; then
+        echo "❌ Database connection timeout after \${TIMEOUT} seconds"
         exit 1
     fi
-    echo "Attempt $COUNT/$TIMEOUT - waiting for ${DB_HOST}:${DB_PORT:-5432}..."
+    echo "Attempt \$COUNT/\$TIMEOUT - waiting for \${DB_HOST}:\${DB_PORT:-5432}..."
     sleep 1
 done
 echo "✅ Database connection established!"
 
-# Vérifier que le port n'est pas déjà utilisé
-PORT=${SERVER_PORT:-8080}
-if netstat -tuln 2>/dev/null | grep -q ":$PORT "; then
-    echo "❌ Port $PORT is already in use. Trying to find available port..."
-    # Optionnel: essayer de trouver un port libre
-    for i in {8081..8090}; do
-        if ! netstat -tuln 2>/dev/null | grep -q ":$i "; then
-            PORT=$i
-            echo "✅ Using available port: $PORT"
-            export SERVER_PORT=$PORT
-            break
-        fi
-    done
-fi
-
 # Démarrer l'application Spring Boot
-echo "🚀 Starting Spring Boot application on port $PORT..."
-exec java ${JAVA_OPTS:-"-Xmx1g -Xms512m"} \
-    -Djava.security.egd=file:/dev/./urandom \
-    -Dspring.profiles.active=${SPRING_PROFILES_ACTIVE:-prod} \
-    -Dserver.port=${SERVER_PORT:-8080} \
-    -Dlogging.file.path=/app/logs \
+echo "🚀 Starting Spring Boot application..."
+exec java \${JAVA_OPTS:-"-Xmx1g -Xms512m"} \\
+    -Djava.security.egd=file:/dev/./urandom \\
+    -Dspring.profiles.active=\${SPRING_PROFILES_ACTIVE:-prod} \\
+    -Dserver.port=\${SERVER_PORT:-8080} \\
+    -Dlogging.file.path=/app/logs \\
     -jar /app/app.jar
 EOF
 
-RUN chmod +x /app/start-prod.sh && \
-    chown appuser:appuser /app/start-prod.sh
+RUN chmod +x /app/start-prod.sh
 
 # Utiliser l'utilisateur non-root
 USER appuser
