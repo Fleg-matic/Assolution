@@ -132,10 +132,10 @@ jobs:
 
                   # Installation avec versions exactes compatibles
                   npm install
-                  npm install --save-dev --save-exact typescript@5.8.3
                   npm install --save-dev --save-exact @angular/cli@20.1.5
                   npm install --save-dev --save-exact @angular-devkit/build-angular@20.1.5
-                  npm install --save-dev --save-exact @angular/compiler-cli@20.1.6
+                  npm install --save-dev --save-exact @angular/compiler-cli@20.1.5
+                  npm install --save-dev --save-exact typescript@5.8.3
 
                   echo "📊 Versions installées:"
                   echo "TypeScript: $(npx tsc --version)"
