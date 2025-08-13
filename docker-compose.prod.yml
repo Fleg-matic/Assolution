@@ -100,7 +100,7 @@ services:
           memory: 768M
           cpus: '1.0'
 
-  # Frontend Builder
+# Frontend Builder avec timeout et debug
   frontend-builder:
     build:
       context: .
@@ -109,14 +109,36 @@ services:
     restart: "no"
     volumes:
       - frontend_static_files:/tmp/dist
+    # ✅ COMMANDE AVEC TIMEOUT ET DEBUG
     command: >
       sh -c "
-        echo '📁 Copying built files to shared volume...' &&
-        cp -r /app/dist/* /tmp/dist/ &&
-        echo '✅ Files copied to volume successfully!' &&
-        ls -la /tmp/dist/ &&
-        echo '📊 Total files: $(ls -1 /tmp/dist | wc -l)' &&
-        echo '🎯 Frontend build completed'
+        echo '🚀 Starting frontend build process...' &&
+        echo '📊 Available memory:' && free -h &&
+        echo '💾 Available disk:' && df -h &&
+        echo '📁 Current directory:' && pwd && ls -la &&
+        
+        # Timeout de 20 minutes maximum
+        timeout 1200 sh -c '
+          echo 📦 Installing dependencies... &&
+          npm ci --no-audit --no-fund --prefer-offline &&
+          echo 🔨 Building production app... &&
+          npm run build:prod &&
+          echo 📁 Copying built files to shared volume... &&
+          cp -r /app/dist/* /tmp/dist/ &&
+          echo ✅ Files copied successfully!
+        ' || {
+          echo ❌ Frontend build failed or timed out after 20 minutes
+          echo 📋 Debug information:
+          echo Memory usage: && free -h
+          echo Disk usage: && df -h  
+          echo Node processes: && ps aux | grep node || true
+          echo NPM cache: && npm cache verify || true
+          exit 1
+        } &&
+        
+        echo '✅ Frontend build completed successfully!' &&
+        echo '📊 Final file count:' && ls -la /tmp/dist/ | wc -l &&
+        echo '🎯 Build finished in container'
       "
     environment:
       - FRONTEND_API_URL=${FRONTEND_API_URL:-/api}
@@ -133,13 +155,17 @@ services:
       - GOOGLE_ANALYTICS_ID=${GOOGLE_ANALYTICS_ID:-}
       - CORS_ALLOWED_ORIGINS=${CORS_ALLOWED_ORIGINS:-}
       - EMAIL_BASE_URL=${EMAIL_BASE_URL:-}
+      # ✅ VARIABLES NODE.JS POUR OPTIMISER LE BUILD
+      - NODE_OPTIONS=--max-old-space-size=4096
+      - NPM_CONFIG_PROGRESS=false
+      - NPM_CONFIG_LOGLEVEL=warn
     networks:
       - assolution-prod-network
     deploy:
       resources:
         limits:
-          memory: 256M
-          cpus: '0.5'
+          memory: 2G  # ✅ Augmenté de 256M à 2G
+          cpus: '1.0'  # ✅ Augmenté de 0.5 à 1.0
 
   # Nginx Reverse Proxy
   nginx:
