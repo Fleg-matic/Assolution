@@ -386,6 +386,24 @@ jobs:
               with:
                   ssh-private-key: ${{ secrets.SSH_KEY }}
 
+            - name: 🔍 Test SSH Connection
+              run: |
+                  echo "🔍 Testing SSH connectivity to Oracle Linux VM..."
+                  echo "Target: ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}"
+
+                  # Test ping
+                  ping -c 3 ${{ secrets.SSH_HOST }} || echo "❌ Ping failed"
+
+                  # Test SSH connection
+                  ssh -o ConnectTimeout=10 -o StrictHostKeyChecking=no ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} "
+                    echo '✅ SSH connection successful!'
+                    echo '📊 System info:'
+                    uname -a
+                    whoami
+                    pwd
+                    docker --version
+                  "
+
             - name: 💾 Backup Production Database
               run: |
                   ssh -o StrictHostKeyChecking=no ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} "
