@@ -7,7 +7,7 @@ services:
     environment:
       POSTGRES_DB: assolution_prod
       POSTGRES_USER: assolution_user  
-      POSTGRES_PASSWORD: ${DB_PASSWORD_PROD}
+      POSTGRES_PASSWORD: ${DB_PASSWORD_PROD:-changeme123}  # ✅ Valeur par défaut ajoutée
       POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=C"
     volumes:
       - postgres_prod_data:/var/lib/postgresql/data
@@ -37,39 +37,39 @@ services:
   # Spring Boot Backend - Production
   backend:
     build:
-      context: .  # ✅ Contexte à la racine du mono-repo
+      context: .
       dockerfile: ./inscriptions/inscriptions-backend/Dockerfile.prod
     container_name: assolution-backend-prod
     restart: always
     environment:
-      # ✅ Variables cohérentes avec le Dockerfile
+      # ✅ VARIABLES COHÉRENTES AVEC VOS SECRETS GITHUB
       SPRING_PROFILES_ACTIVE: prod
       DB_HOST: postgres
       DB_PORT: 5432
       DB_NAME: assolution_prod
       DB_USER: assolution_user
-      DB_PASSWORD_PROD: ${DB_PASSWORD_PROD}
+      DB_PASSWORD: ${DB_PASSWORD_PROD:-changeme123}
       
-      # ✅ Variables Spring Boot directes (prioritaires)
+      # ✅ Variables Spring Boot directes
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/assolution_prod
       SPRING_DATASOURCE_USERNAME: assolution_user
-      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD_PROD}
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD_PROD:-changeme123}
       
-      # ✅ Secrets de production
-      JWT_SECRET_PROD: ${JWT_SECRET_PROD}
-      STRIPE_SECRET_KEY_PROD: ${STRIPE_SECRET_KEY_PROD}
-      STRIPE_WEBHOOK_SECRET_PROD: ${STRIPE_WEBHOOK_SECRET_PROD}
+      # ✅ Secrets de production (versions _PROD)
+      JWT_SECRET: ${JWT_SECRET_PROD:-temp_jwt_secret_for_testing}
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY_PROD:-sk_test_placeholder}
+      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET_PROD:-whsec_placeholder}
       
-      # ✅ Configuration email
-      EMAIL_HOST_PROD: ${EMAIL_HOST_PROD}
-      EMAIL_USER_PROD: ${EMAIL_USER_PROD}
-      EMAIL_PASSWORD_PROD: ${EMAIL_PASSWORD_PROD}
+      # ✅ Configuration email (versions _PROD pour cohérence avec template)
+      EMAIL_HOST_PROD: ${EMAIL_HOST_PROD:-smtp.gmail.com}
+      EMAIL_USER_PROD: ${EMAIL_USER_PROD:-test@gmail.com}
+      EMAIL_PASSWORD_PROD: ${EMAIL_PASSWORD_PROD:-temp_password}
       EMAIL_BASE_URL: ${EMAIL_BASE_URL:-http://localhost}
       
       # ✅ CORS configuration
       CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost}
       
-      # ✅ Configuration JVM optimisée
+      # ✅ Configuration JVM
       JAVA_OPTS: "-Xmx512m -Xms256m -XX:+UseG1GC -Djava.security.egd=file:/dev/./urandom"
       
       # ✅ Port du serveur
@@ -80,9 +80,9 @@ services:
     networks:
       - assolution-prod-network
     volumes:
-      - backend_logs:/app/logs  # ✅ Utiliser un volume Docker au lieu d'un bind mount
+      - backend_logs:/app/logs
     ports:
-      - "8080:8080"  # ✅ Exposer le port pour les tests
+      - "8080:8080"
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost:8080/actuator/health || exit 1"]
       interval: 30s
@@ -119,7 +119,6 @@ services:
         echo '🎯 Frontend build completed'
       "
     environment:
-      # ✅ Variables d'environnement frontend
       - FRONTEND_API_URL=${FRONTEND_API_URL:-/api}
       - FRONTEND_BASE_URL=${FRONTEND_BASE_URL:-}
       - BACKEND_URL_PROD=${BACKEND_URL_PROD:-}

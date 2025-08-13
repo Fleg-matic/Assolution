@@ -14,17 +14,16 @@ RUN echo "📁 Project structure:" && \
     echo "📄 Maven version:" && \
     mvn --version
 
-# Générer le fichier application-prod.properties depuis le template
+# ✅ UTILISER LE TEMPLATE EXISTANT
 RUN echo "📋 Generating application-prod.properties from template..." && \
     if [ -f "../config-templates/application-prod.properties.template" ]; then \
         echo "✅ Template found, copying to resources..." && \
-        cp ../config-templates/application-prod.properties.template src/main/resources/application-prod.properties; \
+        cp ../config-templates/application-prod.properties.template src/main/resources/application-prod.properties && \
+        echo "📊 Template copied successfully"; \
     else \
         echo "❌ Template not found at ../config-templates/application-prod.properties.template"; \
-        echo "📁 Available files in root:"; \
-        ls -la ../ || echo "Parent directory not found"; \
-        echo "📁 Looking for config-templates:"; \
-        find .. -name "config-templates" -type d 2>/dev/null || echo "config-templates directory not found"; \
+        echo "📁 Available files in config-templates:"; \
+        ls -la ../config-templates/ || echo "config-templates directory not found"; \
         exit 1; \
     fi
 
@@ -62,7 +61,7 @@ RUN mkdir -p /app/logs && \
 # Copier le JAR avec les bonnes permissions
 COPY --from=builder --chown=appuser:appuser /build/app.jar /app/app.jar
 
-# Créer le script de démarrage directement
+# ✅ SCRIPT CORRIGÉ - VARIABLES COHÉRENTES AVEC DOCKER-COMPOSE
 COPY --chown=appuser:appuser <<EOF /app/start-prod.sh
 #!/bin/bash
 set -e
@@ -73,10 +72,21 @@ echo "🔧 Active Profile: \${SPRING_PROFILES_ACTIVE:-prod}"
 echo "💾 Database Host: \${DB_HOST:-postgres}"
 echo "🚀 JVM Options: \${JAVA_OPTS}"
 
-# Vérifier les variables d'environnement critiques
+# ✅ VARIABLES VÉRIFIÉES - COHÉRENTES AVEC DOCKER-COMPOSE
+echo "🔍 Checking environment variables:"
+echo "DB_HOST: \${DB_HOST:-NOT_SET}"
+echo "DB_USER: \${DB_USER:-NOT_SET}"
+echo "DB_PASSWORD: \${DB_PASSWORD:-NOT_SET}"
+echo "JWT_SECRET: \${JWT_SECRET:+SET}"
+echo "EMAIL_HOST_PROD: \${EMAIL_HOST_PROD:-NOT_SET}"
+
 if [ -z "\$DB_HOST" ] || [ -z "\$DB_USER" ] || [ -z "\$DB_PASSWORD" ]; then
     echo "❌ Missing required database environment variables"
     echo "Required: DB_HOST, DB_USER, DB_PASSWORD"
+    echo "🔍 Current values:"
+    echo "  DB_HOST=\${DB_HOST:-EMPTY}"
+    echo "  DB_USER=\${DB_USER:-EMPTY}" 
+    echo "  DB_PASSWORD=\${DB_PASSWORD:-EMPTY}"
     exit 1
 fi
 
@@ -101,7 +111,6 @@ exec java \${JAVA_OPTS:-"-Xmx1g -Xms512m"} \\
     -Djava.security.egd=file:/dev/./urandom \\
     -Dspring.profiles.active=\${SPRING_PROFILES_ACTIVE:-prod} \\
     -Dserver.port=\${SERVER_PORT:-8080} \\
-    -Dlogging.file.path=/app/logs \\
     -jar /app/app.jar
 EOF
 
@@ -110,12 +119,12 @@ RUN chmod +x /app/start-prod.sh
 # Utiliser l'utilisateur non-root
 USER appuser
 
-# Exposer le port (configurable)
-EXPOSE ${SERVER_PORT:-8080}
+# Exposer le port
+EXPOSE 8080
 
 # Healthcheck
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
-    CMD curl -f http://localhost:${SERVER_PORT:-8080}/actuator/health || exit 1
+    CMD curl -f http://localhost:8080/actuator/health || exit 1
 
 # Point d'entrée
 ENTRYPOINT ["tini", "--", "/app/start-prod.sh"]

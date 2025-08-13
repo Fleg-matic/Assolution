@@ -35,7 +35,7 @@ spring.jpa.properties.hibernate.jdbc.batch_versioned_data=true
 spring.jpa.properties.hibernate.connection.provider_disables_autocommit=true
 
 # ===============================
-# LOGGING - PRODUCTION
+# LOGGING - PRODUCTION (SIMPLIFIÉ POUR ÉVITER LES PROBLÈMES DE PERMISSIONS)
 # ===============================
 logging.level.root=WARN
 logging.level.com.assolution.inscriptions=INFO
@@ -44,13 +44,8 @@ logging.level.org.springframework.security=INFO
 logging.level.org.hibernate.SQL=WARN
 logging.level.org.hibernate.type.descriptor.sql.BasicBinder=WARN
 
-# Format des logs pour la production
+# Format des logs pour la production (console uniquement)
 logging.pattern.console=%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{40} - %msg%n
-logging.pattern.file=%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{40} - %msg%n
-logging.file.name=/app/logs/assolution-prod.log
-logging.file.max-size=50MB
-logging.file.max-history=30
-logging.file.total-size-cap=1GB
 
 # ===============================
 # ACTUATOR - PRODUCTION (SECURISE)
@@ -93,7 +88,7 @@ stripe.secret-key=${STRIPE_SECRET_KEY_PROD}
 stripe.webhook-secret=${STRIPE_WEBHOOK_SECRET_PROD}
 
 # ===============================
-# EMAIL - PRODUCTION
+# EMAIL - PRODUCTION - ✅ UTILISATION DES VERSIONS _PROD
 # ===============================
 spring.mail.host=${EMAIL_HOST_PROD}
 spring.mail.port=587
