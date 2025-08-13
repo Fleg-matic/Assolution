@@ -5,9 +5,9 @@ services:
     container_name: assolution-postgres-prod
     restart: always
     environment:
-      POSTGRES_DB: ${DB_NAME:-assolution_prod}
-      POSTGRES_USER: ${DB_USER:-assolution_user}
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-changeme123}  # ✅ Valeur par défaut ajoutée
+      POSTGRES_DB: assolution_prod
+      POSTGRES_USER: assolution_user  
+      POSTGRES_PASSWORD: ${DB_PASSWORD_PROD}
       POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=C"
     volumes:
       - postgres_prod_data:/var/lib/postgresql/data
@@ -18,7 +18,7 @@ services:
     networks:
       - assolution-prod-network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-assolution_user} -d ${DB_NAME:-assolution_prod}"]
+      test: ["CMD-SHELL", "pg_isready -U assolution_user -d assolution_prod"]
       interval: 30s
       timeout: 10s
       retries: 10
@@ -42,22 +42,38 @@ services:
     container_name: assolution-backend-prod
     restart: always
     environment:
+      # ✅ Variables cohérentes avec le Dockerfile
       SPRING_PROFILES_ACTIVE: prod
       DB_HOST: postgres
       DB_PORT: 5432
-      DB_NAME: ${DB_NAME:-assolution_prod}
-      DB_USER: ${DB_USER:-assolution_user}
-      DB_PASSWORD: ${DB_PASSWORD_PROD:-${DB_PASSWORD:-changeme123}}
-      JWT_SECRET: ${JWT_SECRET_PROD:-${JWT_SECRET:-temp_jwt_secret_for_testing}}
-      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY_PROD:-${STRIPE_SECRET_KEY:-sk_test_placeholder}}
-      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET_PROD:-${STRIPE_WEBHOOK_SECRET:-whsec_placeholder}}
-      EMAIL_HOST: ${EMAIL_HOST_PROD:-${EMAIL_HOST:-smtp.gmail.com}}
-      EMAIL_USER: ${EMAIL_USER_PROD:-${EMAIL_USER:-test@gmail.com}}
-      EMAIL_PASSWORD: ${EMAIL_PASSWORD_PROD:-${EMAIL_PASSWORD:-temp_password}}
+      DB_NAME: assolution_prod
+      DB_USER: assolution_user
+      DB_PASSWORD: ${DB_PASSWORD_PROD}
+      
+      # ✅ Variables Spring Boot directes (prioritaires)
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/assolution_prod
+      SPRING_DATASOURCE_USERNAME: assolution_user
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD_PROD}
+      
+      # ✅ Secrets de production
+      JWT_SECRET: ${JWT_SECRET_PROD}
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY_PROD}
+      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET_PROD}
+      
+      # ✅ Configuration email
+      EMAIL_HOST: ${EMAIL_HOST_PROD}
+      EMAIL_USER: ${EMAIL_USER_PROD}
+      EMAIL_PASSWORD: ${EMAIL_PASSWORD_PROD}
+      EMAIL_BASE_URL: ${EMAIL_BASE_URL:-http://localhost}
+      
+      # ✅ CORS configuration
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost}
+      
+      # ✅ Configuration JVM optimisée
       JAVA_OPTS: "-Xmx512m -Xms256m -XX:+UseG1GC -Djava.security.egd=file:/dev/./urandom"
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${DB_NAME:-assolution_prod}
-      SPRING_DATASOURCE_USERNAME: ${DB_USER:-assolution_user}
-      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD_PROD:-${DB_PASSWORD:-changeme123}}
+      
+      # ✅ Port du serveur
+      SERVER_PORT: 8080
     depends_on:
       postgres:
         condition: service_healthy
@@ -65,8 +81,10 @@ services:
       - assolution-prod-network
     volumes:
       - ./logs:/app/logs
+    ports:
+      - "8080:8080"  # ✅ Exposer le port pour les tests
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:8080/api/actuator/health || exit 1"]
+      test: ["CMD-SHELL", "curl -f http://localhost:8080/actuator/health || exit 1"]
       interval: 30s
       timeout: 15s
       retries: 15
@@ -82,13 +100,13 @@ services:
           memory: 768M
           cpus: '1.0'
 
-  # ✅ FRONTEND - Build Container avec tous les secrets GitHub Actions
+  # Frontend Builder
   frontend-builder:
     build:
-      context: .  # ✅ Contexte à la racine du mono-repo
+      context: .
       dockerfile: ./inscriptions/inscriptions-frontend/Dockerfile.prod
     container_name: assolution-frontend-builder
-    restart: "no"  # Run once only
+    restart: "no"
     volumes:
       - frontend_static_files:/tmp/dist
     command: >
@@ -101,7 +119,7 @@ services:
         echo '🎯 Frontend build completed'
       "
     environment:
-      # ✅ Toutes vos variables d'environnement GitHub Actions
+      # ✅ Variables d'environnement frontend
       - FRONTEND_API_URL=${FRONTEND_API_URL:-/api}
       - FRONTEND_BASE_URL=${FRONTEND_BASE_URL:-}
       - BACKEND_URL_PROD=${BACKEND_URL_PROD:-}
@@ -116,19 +134,15 @@ services:
       - GOOGLE_ANALYTICS_ID=${GOOGLE_ANALYTICS_ID:-}
       - CORS_ALLOWED_ORIGINS=${CORS_ALLOWED_ORIGINS:-}
       - EMAIL_BASE_URL=${EMAIL_BASE_URL:-}
-      # Variables Cypress (pour les tests dans le build si nécessaire)
-      - CYPRESS_API_URL=${CYPRESS_API_URL:-}
-      - CYPRESS_BASE_URL=${CYPRESS_BASE_URL:-}
-      - CYPRESS_ENVIRONMENT=${CYPRESS_ENVIRONMENT:-production}
     networks:
       - assolution-prod-network
     deploy:
       resources:
         limits:
-          memory: 256M  # ✅ Augmenté pour gérer le build Angular
-          cpus: '0.5'   # ✅ Augmenté pour accélérer le build
+          memory: 256M
+          cpus: '0.5'
 
-  # Nginx Reverse Proxy - Point d'entrée unique
+  # Nginx Reverse Proxy
   nginx:
     image: nginx:1.25-alpine
     container_name: assolution-nginx-prod

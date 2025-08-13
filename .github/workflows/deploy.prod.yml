@@ -450,23 +450,21 @@ jobs:
             - name: 📂 Deploy to Production VM
               env:
                   # ✅ TOUTES les variables d'environnement pour la production
-                  DB_PASSWORD: ${{ secrets.DB_PASSWORD_PROD }}
-                  DB_NAME: "assolution_prod"
-                  DB_USER: "assolution_user"
-                  JWT_SECRET: ${{ secrets.JWT_SECRET_PROD }}
-                  STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY_PROD }}
-                  STRIPE_WEBHOOK_SECRET: ${{ secrets.STRIPE_WEBHOOK_SECRET_PROD }}
+                  DB_PASSWORD_PROD: ${{ secrets.DB_PASSWORD_PROD }}
+                  JWT_SECRET_PROD: ${{ secrets.JWT_SECRET_PROD }}
+                  STRIPE_SECRET_KEY_PROD: ${{ secrets.STRIPE_SECRET_KEY_PROD }}
+                  STRIPE_WEBHOOK_SECRET_PROD: ${{ secrets.STRIPE_WEBHOOK_SECRET_PROD }}
                   STRIPE_PUBLISHABLE_KEY_PROD: ${{ secrets.STRIPE_PUBLISHABLE_KEY_PROD }}
-                  EMAIL_HOST: ${{ secrets.EMAIL_HOST_PROD }}
-                  EMAIL_USER: ${{ secrets.EMAIL_USER_PROD }}
-                  EMAIL_PASSWORD: ${{ secrets.EMAIL_PASSWORD_PROD }}
+                  EMAIL_HOST_PROD: ${{ secrets.EMAIL_HOST_PROD }}
+                  EMAIL_USER_PROD: ${{ secrets.EMAIL_USER_PROD }}
+                  EMAIL_PASSWORD_PROD: ${{ secrets.EMAIL_PASSWORD_PROD }}
                   EMAIL_BASE_URL: ${{ secrets.EMAIL_BASE_URL }}
+                  CORS_ALLOWED_ORIGINS: ${{ secrets.CORS_ALLOWED_ORIGINS }}
                   FRONTEND_API_URL: ${{ secrets.FRONTEND_API_URL }}
                   FRONTEND_BASE_URL: ${{ secrets.FRONTEND_BASE_URL }}
                   BACKEND_URL_PROD: ${{ secrets.BACKEND_URL_PROD }}
                   COOKIE_DOMAIN: ${{ secrets.COOKIE_DOMAIN }}
                   COOKIE_SECURE: ${{ secrets.COOKIE_SECURE }}
-                  CORS_ALLOWED_ORIGINS: ${{ secrets.CORS_ALLOWED_ORIGINS }}
                   ENABLE_ANALYTICS: ${{ secrets.ENABLE_ANALYTICS }}
                   ENABLE_HTTPS_REDIRECT: ${{ secrets.ENABLE_HTTPS_REDIRECT }}
                   SUPPORT_EMAIL: ${{ secrets.SUPPORT_EMAIL }}

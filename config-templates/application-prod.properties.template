@@ -1,12 +1,12 @@
-# Configuration Assolution Backend - Production - TEMPLATE
+# Configuration Assolution Backend - Production
 spring.application.name=assolution-backend
 server.port=8080
 
 # ===============================
 # BASE DE DONNEES - PRODUCTION
 # ===============================
-spring.datasource.url=jdbc:postgresql://${DB_HOST:postgres}:${DB_PORT:5432}/${DB_NAME:assolution_prod}
-spring.datasource.username=${DB_USER:assolution_user}
+spring.datasource.url=jdbc:postgresql://postgres:5432/assolution_prod
+spring.datasource.username=assolution_user
 spring.datasource.password=${DB_PASSWORD_PROD}
 spring.datasource.driver-class-name=org.postgresql.Driver
 
@@ -33,9 +33,6 @@ spring.jpa.properties.hibernate.order_inserts=true
 spring.jpa.properties.hibernate.order_updates=true
 spring.jpa.properties.hibernate.jdbc.batch_versioned_data=true
 spring.jpa.properties.hibernate.connection.provider_disables_autocommit=true
-spring.jpa.properties.hibernate.cache.use_second_level_cache=true
-spring.jpa.properties.hibernate.cache.use_query_cache=true
-spring.jpa.properties.hibernate.cache.region.factory_class=org.hibernate.cache.jcache.JCacheRegionFactory
 
 # ===============================
 # LOGGING - PRODUCTION
@@ -47,21 +44,18 @@ logging.level.org.springframework.security=INFO
 logging.level.org.hibernate.SQL=WARN
 logging.level.org.hibernate.type.descriptor.sql.BasicBinder=WARN
 
-# Format des logs structurés pour la production
-logging.pattern.console=%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level [%X{traceId:-},%X{spanId:-}] %logger{40} - %msg%n
-logging.pattern.file=%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level [%X{traceId:-},%X{spanId:-}] %logger{40} - %msg%n
+# Format des logs pour la production
+logging.pattern.console=%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{40} - %msg%n
+logging.pattern.file=%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{40} - %msg%n
 logging.file.name=/app/logs/assolution-prod.log
 logging.file.max-size=50MB
 logging.file.max-history=30
 logging.file.total-size-cap=1GB
 
-# Logs JSON pour parsing (optionnel)
-logging.config=classpath:logback-spring.xml
-
 # ===============================
 # ACTUATOR - PRODUCTION (SECURISE)
 # ===============================
-management.endpoints.web.exposure.include=health,info,metrics,prometheus
+management.endpoints.web.exposure.include=health,info,metrics
 management.endpoint.health.show-details=when-authorized
 management.endpoint.health.show-components=when-authorized
 management.endpoint.health.group.readiness.include=readinessState,db
@@ -70,9 +64,6 @@ management.endpoint.health.probes.enabled=true
 management.health.db.enabled=true
 management.health.diskspace.enabled=true
 management.health.diskspace.threshold=1GB
-management.info.env.enabled=false
-management.info.java.enabled=true
-management.info.os.enabled=false
 
 # Sécurité des endpoints de monitoring
 management.endpoints.web.base-path=/actuator
@@ -102,7 +93,7 @@ stripe.secret-key=${STRIPE_SECRET_KEY_PROD}
 stripe.webhook-secret=${STRIPE_WEBHOOK_SECRET_PROD}
 
 # ===============================
-# EMAIL - PRODUCTION - Gmail SMTP
+# EMAIL - PRODUCTION
 # ===============================
 spring.mail.host=${EMAIL_HOST_PROD}
 spring.mail.port=587
@@ -137,14 +128,6 @@ server.error.include-stacktrace=never
 server.error.include-exception=false
 
 # ===============================
-# INTERNATIONAL - PRODUCTION
-# ===============================
-spring.messages.basename=messages
-spring.messages.encoding=UTF-8
-spring.mvc.locale=fr_FR
-spring.mvc.locale-resolver=fixed
-
-# ===============================
 # SERVER CONFIG - PRODUCTION
 # ===============================
 server.compression.enabled=true
@@ -168,9 +151,6 @@ spring.lifecycle.timeout-per-shutdown-phase=30s
 management.metrics.distribution.percentiles-histogram.http.server.requests=true
 management.metrics.distribution.percentiles.http.server.requests=0.5,0.95,0.99
 management.metrics.distribution.slo.http.server.requests=50ms,100ms,200ms,300ms,500ms,1s
-
-# Tracing (si Zipkin/Jaeger est utilisé)
-management.tracing.sampling.probability=0.1
 
 # ===============================
 # VALIDATION
