@@ -1,26 +1,29 @@
-# Dockerfile.prod pour le backend Spring Boot
-FROM eclipse-temurin:21-jdk AS builder
+# Dockerfile.prod pour le backend Spring Boot - Version Maven officielle
+FROM maven:3.9.6-eclipse-temurin-21 AS builder
 
 WORKDIR /build
 
 # Copier les fichiers de build
 COPY pom.xml .
 COPY src ./src
-COPY mvnw* ./
 
-# Donner les permissions d'exécution
-RUN chmod +x ./mvnw || true
+# Vérifier la structure du projet
+RUN echo "📁 Project structure:" && \
+    ls -la . && \
+    echo "📄 Maven version:" && \
+    mvn --version
 
 # Build de l'application
-RUN ./mvnw clean package -DskipTests || mvn clean package -DskipTests
+RUN echo "🔨 Building with Maven..." && \
+    mvn clean package -DskipTests
 
-# Vérifier et renommer le JAR
+# Trouver et copier le JAR
 RUN echo "📦 Checking build artifacts:" && \
     ls -la target/ && \
     JAR_FILE=$(find target/ -name "*.jar" -not -name "*-sources.jar" -not -name "*-javadoc.jar" | head -1) && \
-    echo "Found JAR: $JAR_FILE" && \
-    cp "$JAR_FILE" /build/assolution-backend.jar && \
-    ls -la /build/assolution-backend.jar
+    echo "✅ Found JAR: $JAR_FILE" && \
+    cp "$JAR_FILE" /build/app.jar && \
+    ls -la /build/app.jar
 
 # Stage final de production
 FROM eclipse-temurin:21-jre-jammy
@@ -34,18 +37,13 @@ RUN apt-get update && \
 RUN groupadd -g 1001 appuser && \
     useradd -r -u 1001 -g appuser appuser
 
-# Créer répertoires
+# Créer répertoires et copier le JAR
 WORKDIR /app
-RUN mkdir -p /app/logs && chown -R appuser:appuser /app
+RUN mkdir -p /app/logs
+COPY --from=builder --chown=appuser:appuser /build/app.jar /app/app.jar
+RUN chown -R appuser:appuser /app
 
-# Copier le JAR
-COPY --from=builder --chown=appuser:appuser /build/assolution-backend.jar /app/app.jar
-
-# Vérifier que le JAR est bien copié
-RUN ls -la /app/app.jar && \
-    echo "✅ JAR file is present"
-
-# ✅ Créer le script de démarrage avec COPY heredoc (syntaxe correcte)
+# Créer le script de démarrage
 COPY --chown=appuser:appuser <<EOF /app/start-prod.sh
 #!/bin/bash
 
@@ -57,29 +55,19 @@ echo "🚀 JVM Options: \${JAVA_OPTS}"
 
 # Attendre la base de données
 echo "⏳ Waiting for database connection..."
-while ! nc -z \${DB_HOST:-postgres} \${DB_PORT:-5432}; do
-  sleep 1
+while ! nc -z \${DB_HOST:-postgres} \${DB_PORT:-5432}; do 
+sleep 1
 done
 echo "✅ Database connection established!"
 
-# Vérifier que le JAR existe
-if [ ! -f "/app/app.jar" ]; then
-    echo "❌ JAR file not found at /app/app.jar"
-    ls -la /app/
-    exit 1
-fi
-
-# Démarrer l'application Spring Boot avec la commande CORRECTE
+# Démarrer l'application Spring Boot
 echo "🚀 Starting Spring Boot application..."
-echo "🔧 Command: java \${JAVA_OPTS} -jar /app/app.jar"
-
 exec java \${JAVA_OPTS} \\
     -Djava.security.egd=file:/dev/./urandom \\
     -Dspring.profiles.active=\${SPRING_PROFILES_ACTIVE:-prod} \\
     -jar /app/app.jar
 EOF
 
-# Donner les permissions d'exécution
 RUN chmod +x /app/start-prod.sh
 
 # Utiliser l'utilisateur non-root
