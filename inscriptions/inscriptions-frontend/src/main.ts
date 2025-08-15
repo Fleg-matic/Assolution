@@ -48,9 +48,6 @@ import { NgxSpinnerModule } from 'ngx-spinner';
 import { NgxPaginationModule } from 'ngx-pagination';
 import { ToastrModule } from 'ngx-toastr';
 
-// Chart.js
-import { provideCharts, withDefaultRegisterables } from 'ng2-charts';
-
 // Reactive Forms
 import { ReactiveFormsModule, FormsModule } from '@angular/forms';
 
@@ -158,9 +155,6 @@ bootstrapApplication(AppComponent, {
         newestOnTop: true,
       })
     ),
-
-    // Chart.js Provider
-    provideCharts(withDefaultRegisterables()),
 
     // Providers Angular
     provideRouter(routes),
