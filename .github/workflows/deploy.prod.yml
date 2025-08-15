@@ -370,7 +370,7 @@ jobs:
 
     deploy-prod:
         name: 🚀 Deploy to Production
-        runs-on: [self-hosted, oracle-vm-local] # 🎯 Utilise votre runner local
+        runs-on: self-hosted
         needs: [test-complete, security-scan]
         environment: production
 
