@@ -370,7 +370,7 @@ jobs:
 
     deploy-prod:
         name: 🚀 Deploy to Production
-        runs-on: ubuntu-latest
+        runs-on: [self-hosted, oracle-vm-local] # 🎯 Utilise votre runner local
         needs: [test-complete, security-scan]
         environment: production
 
@@ -380,43 +380,33 @@ jobs:
               with:
                   fetch-depth: 0
 
-            - name: 🔑 Setup SSH
-              uses: webfactory/ssh-agent@v0.9.0
-              with:
-                  ssh-private-key: ${{ secrets.SSH_KEY }}
-
-            - name: 🔍 Test SSH Connection
+            - name: 🔍 System Info
               run: |
-                  echo "🔍 Testing SSH connectivity to Oracle Linux VM..."
-                  echo "Target: ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}"
-
-                  # Test ping
-                  ping -c 3 ${{ secrets.SSH_HOST }} || echo "❌ Ping failed"
-
-                  # Test SSH connection
-                  ssh -o ConnectTimeout=10 -o StrictHostKeyChecking=no ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} "
-                    echo '✅ SSH connection successful!'
-                    echo '📊 System info:'
-                    uname -a
-                    whoami
-                    pwd
-                    docker --version
-                  "
+                  echo "🖥️ Running on local VM:"
+                  hostname
+                  whoami
+                  pwd
+                  ip addr show | grep inet
+                  docker --version
 
             - name: 💾 Backup Production Database
               run: |
-                  ssh -o StrictHostKeyChecking=no ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} "
-                    cd /home/dbm/assolution-prod || exit 0
-                    
-                    if docker compose ps | grep postgres; then
-                      timestamp=\$(date +%Y%m%d_%H%M%S)
-                      mkdir -p backups
-                      docker compose exec -T postgres pg_dump -U assolution_user assolution_prod > backups/backup_\${timestamp}.sql
-                      echo '💾 Database backup created: backup_\${timestamp}.sql'
-                    fi
-                  "
+                  cd /home/dbm/assolution-prod || {
+                    echo "⚠️ Production directory not found, creating it..."
+                    mkdir -p /home/dbm/assolution-prod
+                    exit 0
+                  }
 
-            - name: 📂 Deploy to Production VM
+                  if docker compose ps | grep postgres; then
+                    timestamp=$(date +%Y%m%d_%H%M%S)
+                    mkdir -p backups
+                    docker compose exec -T postgres pg_dump -U assolution_user assolution_prod > backups/backup_${timestamp}.sql
+                    echo "💾 Database backup created: backup_${timestamp}.sql"
+                  else
+                    echo "ℹ️ No existing PostgreSQL container found"
+                  fi
+
+            - name: 📂 Deploy to Local Production
               env:
                   # ✅ TOUTES les variables d'environnement pour la production
                   DB_PASSWORD_PROD: ${{ secrets.DB_PASSWORD_PROD }}
@@ -441,49 +431,52 @@ jobs:
                   SUPPORT_PHONE: ${{ secrets.SUPPORT_PHONE }}
                   GOOGLE_ANALYTICS_ID: ${{ secrets.GOOGLE_ANALYTICS_ID }}
               run: |
-                  # Créer le dossier de production
-                  ssh -o StrictHostKeyChecking=no ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} "
-                    mkdir -p /home/dbm/assolution-prod
-                    sudo systemctl is-active docker || sudo systemctl start docker
-                  "
+                  echo "🚀 Starting local production deployment..."
 
-                  # Copier les fichiers
-                  scp -o StrictHostKeyChecking=no -r ./* ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:/home/dbm/assolution-prod/
+                  # Créer le dossier de production s'il n'existe pas
+                  mkdir -p /home/dbm/assolution-prod
 
-                  # Déploiement en production
-                  ssh -o StrictHostKeyChecking=no ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} "
-                    cd /home/dbm/assolution-prod
-                    
-                    echo '🚀 Starting production deployment...'
-                    docker compose -f docker-compose.prod.yml down --remove-orphans
-                    docker compose -f docker-compose.prod.yml build --no-cache
-                    docker compose -f docker-compose.prod.yml up -d
-                    
-                    echo '⏳ Waiting for services to start...'
-                    sleep 60
-                    
-                    # Diagnostic
-                    echo '📊 Container status:'
-                    docker compose -f docker-compose.prod.yml ps
-                    echo '📋 Recent logs:'
-                    docker compose -f docker-compose.prod.yml logs --tail=20
-                    
-                    # Nettoyer les anciennes images
-                    docker image prune -f
-                  "
+                  # Copier les fichiers du workspace vers le dossier de production
+                  echo "📁 Copying files to production directory..."
+                  rsync -av --exclude='.git' --exclude='node_modules' --exclude='target' \
+                    ${{ github.workspace }}/ /home/dbm/assolution-prod/
+
+                  # Changer vers le dossier de production
+                  cd /home/dbm/assolution-prod
+
+                  echo "🛑 Stopping existing services..."
+                  docker compose -f docker-compose.prod.yml down --remove-orphans || true
+
+                  echo "🏗️ Building services..."
+                  docker compose -f docker-compose.prod.yml build --no-cache
+
+                  echo "🚀 Starting services..."
+                  docker compose -f docker-compose.prod.yml up -d
+
+                  echo "⏳ Waiting for services to start..."
+                  sleep 60
+
+                  # Diagnostic
+                  echo "📊 Container status:"
+                  docker compose -f docker-compose.prod.yml ps
+                  echo "📋 Recent logs:"
+                  docker compose -f docker-compose.prod.yml logs --tail=20
+
+                  # Nettoyer les anciennes images
+                  docker image prune -f
 
             - name: 🩺 Production Health Checks
               run: |
-                  sleep 90
+                  sleep 30
 
                   echo "🔍 Running comprehensive health checks..."
 
                   # Test API Health avec authentification
                   for i in {1..15}; do
-                    if curl -f -u admin:admin123 http://${{ secrets.SSH_HOST }}/actuator/health; then
+                    if curl -f -u admin:admin123 http://localhost:8080/api/actuator/health; then
                       echo "✅ API health check passed with authentication"
                       break
-                    elif curl -f http://${{ secrets.SSH_HOST }}/actuator/health; then
+                    elif curl -f http://localhost:8080/api/actuator/health; then
                       echo "✅ API health check passed without authentication"
                       break
                     fi
@@ -491,17 +484,24 @@ jobs:
                     sleep 10
                     if [ $i -eq 15 ]; then
                       echo "❌ API health check failed after 15 attempts"
-                      echo "🔍 Testing basic connectivity to production server:"
-                      curl -v http://${{ secrets.SSH_HOST }}/ || echo "Cannot connect to production server"
+                      echo "📋 Backend logs:"
+                      cd /home/dbm/assolution-prod
+                      docker compose -f docker-compose.prod.yml logs backend --tail=30
                       exit 1
                     fi
                   done
 
                   # Test Frontend
-                  if curl -f http://${{ secrets.SSH_HOST }}/; then
+                  if curl -f http://localhost:80/; then
                     echo "✅ Frontend is accessible"
+                  elif curl -f http://localhost:4200/; then
+                    echo "✅ Frontend is accessible on port 4200"
                   else
                     echo "❌ Frontend accessibility check failed"
+                    echo "📋 Frontend/Nginx logs:"
+                    cd /home/dbm/assolution-prod
+                    docker compose -f docker-compose.prod.yml logs nginx --tail=20
+                    docker compose -f docker-compose.prod.yml logs frontend --tail=20
                     exit 1
                   fi
 
@@ -509,18 +509,38 @@ jobs:
               if: success()
               run: |
                   echo "🎉 Production deployment successful!"
-                  echo "🔗 Production URL: http://${{ secrets.SSH_HOST }}"
-                  echo "🔗 API URL: http://${{ secrets.SSH_HOST }}/api"
-                  echo "📊 Health Check: http://${{ secrets.SSH_HOST }}/api/actuator/health"
+                  echo "🔗 Production URL: http://192.168.1.22"
+                  echo "🔗 API URL: http://192.168.1.22/api"
+                  echo "📊 Health Check: http://192.168.1.22/api/actuator/health"
+
+                  # Afficher les informations système
+                  echo "🖥️ System Resources:"
+                  df -h /
+                  free -h
+                  docker system df
 
             - name: 🚨 Rollback on Failure
               if: failure()
               run: |
                   echo "❌ Deployment failed, attempting rollback..."
-                  ssh -o StrictHostKeyChecking=no ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} "
-                    cd /home/dbm/assolution-prod
-                    docker compose -f docker-compose.prod.yml down
-                    docker compose -f docker-compose.prod.yml up -d
-                    echo '🔄 Rollback completed'
-                  "
+                  cd /home/dbm/assolution-prod
+
+                  # Sauvegarder les logs de l'échec
+                  timestamp=$(date +%Y%m%d_%H%M%S)
+                  mkdir -p logs
+                  docker compose -f docker-compose.prod.yml logs > logs/failed_deployment_${timestamp}.log
+
+                  # Redémarrer les services
+                  docker compose -f docker-compose.prod.yml down
+                  docker compose -f docker-compose.prod.yml up -d
+                  echo "🔄 Rollback completed"
+
+                  # Vérifier que le rollback fonctionne
+                  sleep 30
+                  if curl -f http://localhost:80/ || curl -f http://localhost:4200/; then
+                    echo "✅ Rollback successful - application is running"
+                  else
+                    echo "❌ Rollback failed - manual intervention required"
+                  fi
+
                   exit 1
