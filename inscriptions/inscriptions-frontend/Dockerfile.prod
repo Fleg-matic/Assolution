@@ -11,17 +11,13 @@ RUN apk add --no-cache git python3 make g++ curl bash gettext
 WORKDIR /build
 
 # Copier les fichiers de configuration npm en premier
-COPY package.json package-lock.json ./
+COPY inscriptions/inscriptions-frontend/package.json inscriptions/inscriptions-frontend/package-lock.json ./
 
 # Vérifier que package-lock.json existe
 RUN ls -la package*.json
 
-# ✅ Installation des dépendances avec versions TypeScript compatibles
-RUN npm ci --no-audit --no-fund && \
-    npm install --save-dev @angular/cli@20.1.6 && \
-    npm install --save-dev @angular-devkit/build-angular@20.1.6 && \
-    npm install --save-dev @angular/compiler-cli@20.1.6 && \
-    npm install --save-dev typescript@5.8.3
+# ✅ Installation PROPRE avec npm ci - SANS --only=production pour permettre les devDependencies
+RUN npm ci --no-audit --no-fund
 
 # ✅ COPIE DU TEMPLATE depuis le contexte de build (racine du mono-repo)
 COPY config-templates/environment.prod.ts.template /tmp/environment.prod.ts.template
@@ -32,11 +28,11 @@ COPY inscriptions/inscriptions-frontend/ .
 # ✅ SUBSTITUTION DES VARIABLES D'ENVIRONNEMENT - AVEC GESTION DES VALEURS VIDES
 RUN echo "🔧 Processing environment variables from template..." && \
     if [ -f "/tmp/environment.prod.ts.template" ]; then \
-        echo "📝 Substituting variables from config-templates..." && \
+        echo "🔍 Substituting variables from config-templates..." && \
         echo "🔍 Template content preview:" && \
         head -10 /tmp/environment.prod.ts.template && \
         echo "..." && \
-        echo "🔄 Setting up environment variables with fallbacks..." && \
+        echo "📄 Setting up environment variables with fallbacks..." && \
         export FRONTEND_API_URL="${FRONTEND_API_URL:-/api}" && \
         export FRONTEND_BASE_URL="${FRONTEND_BASE_URL:-}" && \
         export STRIPE_PUBLISHABLE_KEY_PROD="${STRIPE_PUBLISHABLE_KEY_PROD:-pk_test_placeholder}" && \
@@ -52,7 +48,7 @@ RUN echo "🔧 Processing environment variables from template..." && \
         echo "FRONTEND_API_URL=$FRONTEND_API_URL" && \
         echo "ENABLE_ANALYTICS=$ENABLE_ANALYTICS" && \
         echo "COOKIE_SECURE=$COOKIE_SECURE" && \
-        echo "🔄 Running envsubst..." && \
+        echo "📄 Running envsubst..." && \
         envsubst < /tmp/environment.prod.ts.template > src/environments/environment.prod.ts && \
         echo "✅ Environment file generated from template:" && \
         head -20 src/environments/environment.prod.ts && \
@@ -104,16 +100,16 @@ RUN echo "🎯 Building Angular application..." && \
 
 # Diagnostic complet de la structure de build
 RUN echo "🔍 DIAGNOSTIC COMPLET BUILD STRUCTURE:" && \
-    echo "📁 Root /build contents:" && \
+    echo "🔍 Root /build contents:" && \
     ls -la /build/ && \
     echo "" && \
-    echo "📁 Contents of /build/dist:" && \
+    echo "🔍 Contents of /build/dist:" && \
     ls -la /build/dist/ 2>/dev/null || echo "❌ No dist directory found" && \
     echo "" && \
-    echo "📁 Searching for index.html recursively:" && \
+    echo "🔍 Searching for index.html recursively:" && \
     find /build -name "index.html" -type f 2>/dev/null || echo "❌ No index.html found" && \
     echo "" && \
-    echo "📁 Searching for main.*.js files:" && \
+    echo "🔍 Searching for main.*.js files:" && \
     find /build -name "main.*.js" -type f 2>/dev/null || echo "❌ No main.js files found"
 
 # Copie intelligente et robuste des fichiers buildés
@@ -181,7 +177,7 @@ RUN echo '#!/bin/bash' > /app/verify.sh && \
     echo 'echo "📅 Built on: $(date)"' >> /app/verify.sh && \
     echo 'echo "📊 Files: $(find /app/dist -type f | wc -l)"' >> /app/verify.sh && \
     echo 'echo "📊 Size: $(du -sh /app/dist | cut -f1)"' >> /app/verify.sh && \
-    echo 'echo "📁 Directory contents:"' >> /app/verify.sh && \
+    echo 'echo "🔍 Directory contents:"' >> /app/verify.sh && \
     echo 'ls -la /app/dist/' >> /app/verify.sh && \
     echo 'echo "✅ Frontend static files ready for Nginx"' >> /app/verify.sh && \
     echo 'tail -f /dev/null' >> /app/verify.sh && \
