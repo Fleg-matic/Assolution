@@ -471,25 +471,47 @@ jobs:
 
                   echo "🔍 Running comprehensive health checks..."
 
-                  # Test API Health avec authentification
-                  for i in {1..15}; do
-                    if curl -f -u admin:admin123 http://localhost:8080/api/actuator/health; then
-                      echo "✅ API health check passed with authentication"
-                      break
-                    elif curl -f http://localhost:8080/api/actuator/health; then
-                      echo "✅ API health check passed without authentication"
+                  # ✅ Test API Health OPTIMISÉ - tentatives plus rapides
+                  for i in {1..10}; do
+                    if curl -f --max-time 10 http://localhost:8080/actuator/health; then
+                      echo "✅ API health check passed in $i attempts"
                       break
                     fi
-                    echo "⏳ Waiting for API... (attempt $i/15)"
-                    sleep 10
-                    if [ $i -eq 15 ]; then
-                      echo "❌ API health check failed after 15 attempts"
+                    echo "⏳ Waiting for API... (attempt $i/10)"
+                    sleep 5
+                    if [ $i -eq 10 ]; then
+                      echo "❌ API health check failed after 10 attempts"
                       echo "📋 Backend logs:"
                       cd /home/dbm/assolution-prod
-                      docker compose -f docker-compose.prod.yml logs backend --tail=30
+                      docker compose -f docker-compose.prod.yml logs backend --tail=50
+                      echo "📊 Container status:"
+                      docker compose -f docker-compose.prod.yml ps
+                      echo "🔍 System resources:"
+                      docker stats --no-stream
                       exit 1
                     fi
                   done
+
+                  # ✅ Test plus détaillé de l'API avec timeout
+                  echo "🔍 Testing API endpoints..."
+
+                  # Test health avec détails et timeout
+                  health_response=$(curl -s --max-time 5 http://localhost:8080/actuator/health)
+                  echo "📊 Health response: $health_response"
+
+                  # Vérifier que la réponse contient "UP"
+                  if echo "$health_response" | grep -q '"status":"UP"'; then
+                    echo "✅ API status is UP"
+                    
+                    # Test des métriques si disponibles
+                    if curl -f --max-time 5 http://localhost:8080/actuator/info >/dev/null 2>&1; then
+                      echo "✅ API info endpoint accessible"
+                    fi
+                  else
+                    echo "❌ API status is not UP"
+                    echo "📋 Full health response: $health_response"
+                    exit 1
+                  fi
 
                   # Test Frontend
                   if curl -f http://localhost:80/; then

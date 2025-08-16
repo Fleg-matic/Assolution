@@ -34,7 +34,7 @@ services:
           memory: 1G
           cpus: '0.5'
 
-  # Spring Boot Backend - Production
+  # Spring Boot Backend - Production Optimisé
   backend:
     build:
       context: .
@@ -60,6 +60,9 @@ services:
       STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY_PROD:-sk_test_placeholder}
       STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET_PROD:-whsec_placeholder}
       
+      # ✅ NOUVEAU : Mot de passe admin pour les endpoints sécurisés
+      ADMIN_PASSWORD_PROD: ${ADMIN_PASSWORD_PROD:-secure_default_password_2024}
+      
       # ✅ Configuration email (versions _PROD pour cohérence avec template)
       EMAIL_HOST_PROD: ${EMAIL_HOST_PROD:-smtp.gmail.com}
       EMAIL_USER_PROD: ${EMAIL_USER_PROD:-test@gmail.com}
@@ -69,10 +72,12 @@ services:
       # ✅ CORS configuration
       CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost}
       
-      # ✅ Configuration JVM
-      JAVA_OPTS: "-Xmx512m -Xms256m -XX:+UseG1GC -Djava.security.egd=file:/dev/./urandom"
+      # ✅ Configuration JVM optimisée pour démarrage rapide
+      JAVA_OPTS: "-Xmx512m -Xms512m -XX:+UseG1GC -XX:+UseStringDeduplication -XX:+OptimizeStringConcat -Djava.security.egd=file:/dev/./urandom -Djava.awt.headless=true -XX:TieredStopAtLevel=1 -XX:+UnlockExperimentalVMOptions -XX:+UseJVMCICompiler"
       
-      # ✅ Port du serveur
+      # ✅ Variables pour monitoring des performances
+      STARTUP_MONITORING: "true"
+      SPRING_OUTPUT_ANSI_ENABLED: "never"
       SERVER_PORT: 8080
     depends_on:
       postgres:
@@ -84,11 +89,12 @@ services:
     ports:
       - "8080:8080"
     healthcheck:
+      # ✅ HEALTH CHECK OPTIMISÉ - démarrage plus rapide
       test: ["CMD-SHELL", "curl -f http://localhost:8080/actuator/health || exit 1"]
-      interval: 30s
-      timeout: 15s
-      retries: 15
-      start_period: 180s
+      interval: 15s
+      timeout: 10s
+      retries: 20
+      start_period: 90s
     logging:
       driver: "json-file"
       options:
@@ -113,7 +119,7 @@ services:
     command: >
       sh -c "
         echo '🚀 Copying pre-built frontend files...' &&
-        echo '📁 Checking /app/dist contents:' &&
+        echo '🔍 Checking /app/dist contents:' &&
         ls -la /app/dist/ &&
         echo '📦 Copying to shared volume...' &&
         cp -r /app/dist/* /tmp/dist/ &&
@@ -145,7 +151,7 @@ services:
           memory: 512M
           cpus: '0.2'
 
-  # Nginx Reverse Proxy
+  # Nginx Reverse Proxy Optimisé
   nginx:
     image: nginx:1.25-alpine
     container_name: assolution-nginx-prod
@@ -161,6 +167,9 @@ services:
       - ./nginx/ssl:/etc/nginx/ssl:ro
       - ./logs/nginx:/var/log/nginx
       - frontend_static_files:/usr/share/nginx/html:ro
+      # ✅ NOUVEAU : Cache directories pour nginx optimisé
+      - nginx_cache:/var/cache/nginx
+      - nginx_tmp_cache:/tmp/nginx_cache
     depends_on:
       frontend-builder:
         condition: service_completed_successfully
@@ -194,3 +203,8 @@ volumes:
     name: assolution-frontend-static
   backend_logs:
     name: assolution-backend-logs
+  # ✅ NOUVEAUX VOLUMES pour nginx optimisé
+  nginx_cache:
+    name: assolution-nginx-cache
+  nginx_tmp_cache:
+    name: assolution-nginx-tmp-cache

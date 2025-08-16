@@ -1,4 +1,4 @@
-# Configuration Assolution Backend - Production
+# Configuration Assolution Backend - Production Optimisée
 spring.application.name=assolution-backend
 server.port=8080
 
@@ -10,20 +10,22 @@ spring.datasource.username=assolution_user
 spring.datasource.password=${DB_PASSWORD_PROD}
 spring.datasource.driver-class-name=org.postgresql.Driver
 
-# Pool de connexions optimisé pour la production
-spring.datasource.hikari.connection-timeout=30000
-spring.datasource.hikari.minimum-idle=10
-spring.datasource.hikari.maximum-pool-size=50
-spring.datasource.hikari.idle-timeout=600000
-spring.datasource.hikari.max-lifetime=1800000
+# Pool de connexions optimisé pour démarrage rapide ET performance
+spring.datasource.hikari.connection-timeout=20000
+spring.datasource.hikari.minimum-idle=5
+spring.datasource.hikari.maximum-pool-size=20
+spring.datasource.hikari.idle-timeout=300000
+spring.datasource.hikari.max-lifetime=900000
 spring.datasource.hikari.auto-commit=true
 spring.datasource.hikari.pool-name=AssolutionHikariCP
 spring.datasource.hikari.leak-detection-threshold=60000
+spring.datasource.hikari.initialization-fail-timeout=30000
+spring.datasource.hikari.connection-test-query=SELECT 1
 
 # ===============================
-# JPA / HIBERNATE - PRODUCTION
+# JPA / HIBERNATE - PRODUCTION OPTIMISÉ
 # ===============================
-spring.jpa.hibernate.ddl-auto=validate
+spring.jpa.hibernate.ddl-auto=none
 spring.jpa.database-platform=org.hibernate.dialect.PostgreSQLDialect
 spring.jpa.show-sql=false
 spring.jpa.properties.hibernate.format_sql=false
@@ -33,6 +35,19 @@ spring.jpa.properties.hibernate.order_inserts=true
 spring.jpa.properties.hibernate.order_updates=true
 spring.jpa.properties.hibernate.jdbc.batch_versioned_data=true
 spring.jpa.properties.hibernate.connection.provider_disables_autocommit=true
+
+# ✅ OPTIMISATIONS HIBERNATE POUR DÉMARRAGE RAPIDE
+spring.jpa.properties.hibernate.temp.use_jdbc_metadata_defaults=false
+spring.jpa.properties.hibernate.dialect.storage_engine=innodb
+spring.jpa.properties.hibernate.connection.autocommit=false
+spring.jpa.properties.hibernate.jdbc.lob.non_contextual_creation=true
+spring.jpa.defer-datasource-initialization=false
+spring.jpa.open-in-view=false
+
+# ✅ DÉSACTIVER LA VALIDATION SCHEMA AU DÉMARRAGE (PLUS RAPIDE)
+spring.jpa.hibernate.ddl-auto=none
+spring.jpa.generate-ddl=false
+spring.sql.init.mode=never
 
 # ===============================
 # LOGGING - PRODUCTION (SIMPLIFIÉ POUR ÉVITER LES PROBLÈMES DE PERMISSIONS)
@@ -48,11 +63,11 @@ logging.level.org.hibernate.type.descriptor.sql.BasicBinder=WARN
 logging.pattern.console=%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{40} - %msg%n
 
 # ===============================
-# ACTUATOR - PRODUCTION (SECURISE MAIS HEALTH PUBLIC)
+# ACTUATOR - PRODUCTION (HEALTH CHECK PUBLIC, AUTRES ENDPOINTS SÉCURISÉS)
 # ===============================
 management.endpoints.web.exposure.include=health,info,metrics
-management.endpoint.health.show-details=when-authorized
-management.endpoint.health.show-components=when-authorized
+management.endpoint.health.show-details=always
+management.endpoint.health.show-components=always
 management.endpoint.health.group.readiness.include=readinessState,db
 management.endpoint.health.group.liveness.include=livenessState,diskSpace
 management.endpoint.health.probes.enabled=true
@@ -60,12 +75,12 @@ management.health.db.enabled=true
 management.health.diskspace.enabled=true
 management.health.diskspace.threshold=1GB
 
-# Sécurité des endpoints de monitoring
+# Configuration des endpoints de monitoring
 management.endpoints.web.base-path=/actuator
 management.server.port=8080
 management.endpoint.health.cache.time-to-live=10s
 
-# ✅ PERMETTRE L'ACCÈS PUBLIC AU HEALTH CHECK
+# ✅ DÉSACTIVER COMPLÈTEMENT LA SÉCURITÉ SUR LE HEALTH CHECK
 management.security.enabled=false
 management.endpoint.health.enabled=true
 
@@ -112,10 +127,34 @@ spring.servlet.multipart.max-request-size=20MB
 app.upload.dir=/app/uploads/
 
 # ===============================
-# CACHE - PRODUCTION
+# OPTIMISATIONS SPRING BOOT POUR DÉMARRAGE RAPIDE
+# ===============================
+
+# ✅ Désactiver les fonctionnalités non essentielles au démarrage
+spring.main.lazy-initialization=false
+spring.jmx.enabled=false
+spring.output.ansi.enabled=never
+
+# ✅ Optimisations Web
+spring.mvc.async.request-timeout=30000
+spring.mvc.dispatch-options-request=false
+
+# ✅ Optimisations Jackson
+spring.jackson.serialization.write-dates-as-timestamps=true
+spring.jackson.default-property-inclusion=NON_NULL
+
+# ✅ Désactiver certaines auto-configurations coûteuses
+spring.autoconfigure.exclude=org.springframework.boot.autoconfigure.gson.GsonAutoConfiguration,org.springframework.boot.autoconfigure.groovy.template.GroovyTemplateAutoConfiguration,org.springframework.boot.autoconfigure.mustache.MustacheAutoConfiguration,org.springframework.boot.autoconfigure.thymeleaf.ThymeleafAutoConfiguration
+
+# ✅ Optimisation des ressources statiques (désactivées en prod)
+spring.web.resources.add-mappings=false
+spring.mvc.static-path-pattern=/static/**
+
+# ===============================
+# CACHE - PRODUCTION OPTIMISÉ
 # ===============================
 spring.cache.type=caffeine
-spring.cache.caffeine.spec=maximumSize=1000,expireAfterWrite=300s
+spring.cache.caffeine.spec=maximumSize=500,expireAfterWrite=180s,expireAfterAccess=60s
 spring.cache.cache-names=users,inscriptions,config
 
 # ===============================
@@ -126,14 +165,18 @@ server.error.include-binding-errors=never
 server.error.include-stacktrace=never
 server.error.include-exception=false
 
-# ✅ CONFIGURATION SECURITY POUR HEALTH CHECK PUBLIC
+# ✅ SÉCURITÉ SPRING - PERMETTRE ACCÈS PUBLIC AU HEALTH CHECK UNIQUEMENT
+# Désactiver l'authentification par défaut pour les actuators
 spring.security.user.name=admin
-spring.security.user.password=${ADMIN_PASSWORD:-admin123}
+spring.security.user.password=${ADMIN_PASSWORD_PROD:-secure_default_password_2024}
 spring.security.user.roles=ADMIN
 
-# Permettre l'accès public au health check uniquement
-management.endpoint.health.show-details=always
+# ✅ CONFIGURATION SPÉCIFIQUE POUR DÉSACTIVER L'AUTH SUR HEALTH CHECK
+# Ces propriétés permettent l'accès public au health check uniquement
 management.endpoints.web.exposure.include=health,info
+management.endpoint.health.show-details=always
+management.endpoints.web.cors.allowed-origins=*
+management.endpoints.web.cors.allowed-methods=GET,OPTIONS
 
 # ===============================
 # SERVER CONFIG - PRODUCTION
