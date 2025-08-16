@@ -183,5 +183,5 @@ RUN echo '#!/bin/bash' > /app/verify.sh && \
     echo 'tail -f /dev/null' >> /app/verify.sh && \
     chmod +x /app/verify.sh
 
-WORKDIR /app/dist
+WORKDIR /app
 ENTRYPOINT ["/app/verify.sh"]
