@@ -184,4 +184,4 @@ RUN echo '#!/bin/bash' > /app/verify.sh && \
     chmod +x /app/verify.sh
 
 WORKDIR /app
-ENTRYPOINT ["/app/verify.sh"]
+CMD ["/app/verify.sh"]
