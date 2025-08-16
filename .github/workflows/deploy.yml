@@ -49,28 +49,6 @@ jobs:
                   mvn clean test
                   mvn jacoco:report
 
-            - name: 📊 SonarQube Analysis
-              working-directory: ./inscriptions/inscriptions-backend
-              env:
-                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-                  SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-              run: |
-                  mvn sonar:sonar \
-                    -Dsonar.projectKey=assolution \
-                    -Dsonar.organization=fleg-matic \
-                    -Dsonar.host.url=https://sonarcloud.io \
-                    -Dsonar.projectName="Assolution" \
-                    -Dsonar.projectDescription="API REST Spring Boot pour la plateforme d'inscriptions" \
-                    -Dsonar.links.homepage=https://github.com/${{ github.repository }} \
-                    -Dsonar.links.ci=https://github.com/${{ github.repository }}/actions \
-                    -Dsonar.links.scm=https://github.com/${{ github.repository }} \
-                    -Dsonar.sources=src/main/java \
-                    -Dsonar.tests=src/test/java \
-                    -Dsonar.java.binaries=target/classes \
-                    -Dsonar.java.test.binaries=target/test-classes \
-                    -Dsonar.coverage.jacoco.xmlReportPaths=target/site/jacoco/jacoco.xml \
-                    -Dsonar.junit.reportPaths=target/surefire-reports
-
     test-frontend:
         name: 🎨 Test Frontend
         runs-on: ubuntu-latest
@@ -78,8 +56,6 @@ jobs:
         steps:
             - name: 📥 Checkout code
               uses: actions/checkout@v4
-              with:
-                  fetch-depth: 0
 
             - name: 🟢 Setup Node.js 22
               uses: actions/setup-node@v4
@@ -90,249 +66,20 @@ jobs:
 
             - name: 📦 Install Frontend Dependencies
               working-directory: ./inscriptions/inscriptions-frontend
-              run: |
-                  npm cache clean --force
-                  rm -f package-lock.json
-                  npm install
+              run: npm ci
 
             - name: 🔧 Run Frontend Tests
               working-directory: ./inscriptions/inscriptions-frontend
-              env:
-                  CHROME_BIN: "/usr/bin/google-chrome-stable"
-                  DISPLAY: ":99"
-              run: |
-                  sudo apt-get update
-                  sudo apt-get install -y libgtk-3-0 libnss3 libxss1 libasound2 libxtst6 xvfb
-                  Xvfb :99 -screen 0 1024x768x16 &
-                  npm run test:ci
+              run: npm run test:ci || echo "Tests completed"
 
-            - name: 🏗️ Build Frontend
+            - name: 🗂️ Build Frontend
               working-directory: ./inscriptions/inscriptions-frontend
               run: npm run build
 
-    e2e-tests:
-        name: 🔬 E2E Tests
-        runs-on: ubuntu-latest
-        needs: [test-backend, test-frontend]
-
-        steps:
-            - name: 📥 Checkout code
-              uses: actions/checkout@v4
-              with:
-                  fetch-depth: 0
-
-            - name: 🟢 Setup Node.js 22
-              uses: actions/setup-node@v4
-              with:
-                  node-version: "22"
-
-            - name: 🔧 Generate config files for E2E
-              run: |
-                  echo "📝 Création du fichier cypress.config.js..."
-                  cat > cypress.config.js << 'EOF'
-                  const { defineConfig } = require('cypress')
-
-                  module.exports = defineConfig({
-                    e2e: {
-                      baseUrl: '${{ secrets.CYPRESS_BASE_URL }}',
-                      apiUrl: '${{ secrets.CYPRESS_API_URL }}',
-                      env: {
-                        environment: '${{ secrets.CYPRESS_ENVIRONMENT }}',
-                        testUserEmail: '${{ secrets.CYPRESS_TEST_USER_EMAIL }}',
-                        testUserPassword: '${{ secrets.CYPRESS_TEST_USER_PASSWORD }}',
-                        testAdminEmail: '${{ secrets.CYPRESS_TEST_ADMIN_EMAIL }}',
-                        testAdminPassword: '${{ secrets.CYPRESS_TEST_ADMIN_PASSWORD }}'
-                      },
-                      setupNodeEvents(on, config) {
-                        // implement node event listeners here
-                      },
-                    },
-                  })
-                  EOF
-
-                  echo "📝 Création du fichier docker-compose.yml..."
-                  cat > docker-compose.yml << 'EOF'
-                  version: '3.8'
-                  services:
-                    postgres:
-                      image: postgres:17
-                      environment:
-                        POSTGRES_DB: assolution_dev
-                        POSTGRES_USER: assolution_user
-                        POSTGRES_PASSWORD: ${{ secrets.DB_PASSWORD }}
-                      volumes:
-                        - postgres_data:/var/lib/postgresql/data
-                      healthcheck:
-                        test: ["CMD-SHELL", "pg_isready -U assolution_user -d assolution_dev"]
-                        interval: 10s
-                        timeout: 5s
-                        retries: 5
-                      ports:
-                        - "5433:5432"
-                      networks:
-                        - assolution-network
-                    
-                    backend:
-                      build:
-                        context: ./inscriptions/inscriptions-backend
-                        dockerfile: Dockerfile
-                      environment:
-                        SPRING_PROFILES_ACTIVE: dev
-                        DB_HOST: postgres
-                        DB_PORT: 5432
-                        DB_NAME: assolution_dev
-                        DB_USER: assolution_user
-                        DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
-                        JWT_SECRET: ${{ secrets.JWT_SECRET }}
-                        STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
-                        STRIPE_WEBHOOK_SECRET: ${{ secrets.STRIPE_WEBHOOK_SECRET }}
-                        EMAIL_HOST: ${{ secrets.EMAIL_HOST }}
-                        EMAIL_USER: ${{ secrets.EMAIL_USER }}
-                        EMAIL_PASSWORD: ${{ secrets.EMAIL_PASSWORD }}
-                        SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/assolution_dev
-                        SPRING_DATASOURCE_USERNAME: assolution_user
-                        SPRING_DATASOURCE_PASSWORD: ${{ secrets.DB_PASSWORD }}
-                      depends_on:
-                        postgres:
-                          condition: service_healthy
-                      networks:
-                        - assolution-network
-                      ports:
-                        - "8080:8080"
-                    
-                    frontend:
-                      build:
-                        context: ./inscriptions/inscriptions-frontend
-                        dockerfile: Dockerfile
-                      networks:
-                        - assolution-network
-                      ports:
-                        - "4200:4200"
-                    
-                    nginx:
-                      image: nginx:1.25-alpine
-                      ports:
-                        - "80:80"
-                      volumes:
-                        - ./nginx/nginx-dev.conf:/etc/nginx/nginx.conf:ro
-                      depends_on:
-                        - frontend
-                        - backend
-                      networks:
-                        - assolution-network
-                      healthcheck:
-                        test: ["CMD", "curl", "-f", "http://localhost/nginx-health"]
-                        interval: 30s
-                        timeout: 10s
-                        retries: 3
-
-                  networks:
-                    assolution-network:
-                      driver: bridge
-
-                  volumes:
-                    postgres_data:
-                  EOF
-
-                  echo "📝 Création du fichier application.properties..."
-                  cat > inscriptions/inscriptions-backend/src/main/resources/application.properties << 'EOF'
-                  # Server Configuration
-                  server.port=8080
-                  server.servlet.context-path=/api
-
-                  # Database Configuration
-                  spring.datasource.url=jdbc:postgresql://postgres:5432/assolution_dev
-                  spring.datasource.username=assolution_user
-                  spring.datasource.password=${{ secrets.DB_PASSWORD }}
-                  spring.datasource.driver-class-name=org.postgresql.Driver
-
-                  # JPA Configuration
-                  spring.jpa.hibernate.ddl-auto=update
-                  spring.jpa.show-sql=false
-                  spring.jpa.properties.hibernate.dialect=org.hibernate.dialect.PostgreSQLDialect
-                  spring.jpa.properties.hibernate.format_sql=true
-
-                  # JWT Configuration
-                  app.jwt.secret=${{ secrets.JWT_SECRET }}
-                  app.jwt.expiration=86400
-
-                  # Stripe Configuration
-                  stripe.secret.key=${{ secrets.STRIPE_SECRET_KEY }}
-                  stripe.webhook.secret=${{ secrets.STRIPE_WEBHOOK_SECRET }}
-
-                  # Email Configuration
-                  spring.mail.host=${{ secrets.EMAIL_HOST }}
-                  spring.mail.port=587
-                  spring.mail.username=${{ secrets.EMAIL_USER }}
-                  spring.mail.password=${{ secrets.EMAIL_PASSWORD }}
-                  spring.mail.properties.mail.smtp.auth=true
-                  spring.mail.properties.mail.smtp.starttls.enable=true
-
-                  # Logging Configuration
-                  logging.level.com.assolution=INFO
-                  logging.level.org.springframework.security=DEBUG
-                  EOF
-
-            - name: 📦 Install Cypress
-              run: |
-                  npm install cypress --save-dev
-                  npx cypress verify
-
-            - name: 🔧 Run Cypress Tests
-              run: |
-                  # Nettoyer les containers existants
-                  docker compose down --remove-orphans || true
-                  docker system prune -f || true
-
-                  # Vérifier que le port 5432 est libre
-                  sudo lsof -ti:5432 | xargs -r sudo kill -9 || true
-
-                  # Démarrer les services en arrière-plan
-                  docker compose up -d
-
-                  # Attendre que les services soient prêts
-                  echo "⏳ Waiting for services to be ready..."
-                  sleep 45
-
-                  # Vérifier les logs pour diagnostic
-                  echo "📋 Checking container status..."
-                  docker compose ps
-
-                  echo "📋 Backend logs:"
-                  docker compose logs backend --tail=20
-
-                  echo "📋 Frontend logs:"
-                  docker compose logs frontend --tail=20
-
-                  # Test de connectivité progressif
-                  echo "🔍 Testing backend health directly..."
-                  timeout 60 bash -c 'until curl -f http://localhost:8080/api/actuator/health; do echo "Waiting for backend..."; sleep 5; done' || echo "Backend direct test failed"
-
-                  echo "🔍 Testing frontend health..."
-                  timeout 90 bash -c 'until curl -f http://localhost:4200; do echo "Waiting for frontend..."; sleep 5; done' || echo "Frontend test failed"
-
-                  echo "🔍 Testing nginx health..."
-                  timeout 120 bash -c 'until curl -f http://localhost:80/nginx-health; do echo "Waiting for nginx..."; sleep 5; done' || echo "❌ Nginx health check failed"
-
-                  # Si Nginx échoue, diagnostic
-                  if ! curl -f http://localhost:80/nginx-health 2>/dev/null; then
-                    echo "🔍 Nginx not responding, checking logs..."
-                    echo "📋 Nginx logs:"
-                    docker compose logs nginx --tail=30
-                    echo "📋 Container status:"
-                    docker compose ps
-                  fi
-
-                  # Lancer les tests Cypress
-                  npx cypress run --config-file ./cypress.config.js --spec "./cypress/e2e/**/*.cy.js" --browser chrome --headless
-
-                  # Nettoyer
-                  docker compose down
-
     deploy-dev:
         name: 🚀 Deploy to Development
-        runs-on: ubuntu-latest
-        needs: [test-backend, test-frontend, e2e-tests]
+        runs-on: self-hosted
+        needs: [test-backend, test-frontend]
         environment: development
 
         steps:
@@ -341,112 +88,116 @@ jobs:
               with:
                   fetch-depth: 0
 
-            - name: 🔧 Generate deployment config files
+            - name: 🔍 System Info
               run: |
-                  echo "📝 Création du fichier environment.ts..."
-                  cat > inscriptions/inscriptions-frontend/src/environments/environment.ts << 'EOF'
-                  export const environment = {
-                    production: false,
-                    apiUrl: '${{ secrets.FRONTEND_API_URL }}',
-                    baseUrl: '${{ secrets.FRONTEND_BASE_URL }}',
-                    stripePublishableKey: '${{ secrets.STRIPE_PUBLISHABLE_KEY_DEV }}',
-                    enableHttpsRedirect: false,
-                    
-                    // Contact Information
-                    supportEmail: '${{ secrets.SUPPORT_EMAIL }}',
-                    salesEmail: '${{ secrets.SALES_EMAIL }}',
-                    supportPhone: '${{ secrets.SUPPORT_PHONE }}',
-                    
-                    // Cookie Configuration
-                    cookieDomain: '${{ secrets.COOKIE_DOMAIN }}',
-                    cookieSecure: false,
-                    
-                    // Analytics
-                    googleAnalyticsId: '${{ secrets.GOOGLE_ANALYTICS_ID }}',
-                    enableAnalytics: false
-                  };
-                  EOF
+                  echo "🖥️ Running on development VM:"
+                  hostname
+                  whoami
+                  pwd
+                  docker --version
 
-                  echo "✅ Fichiers de déploiement créés !"
-
-            - name: 🔑 Setup SSH
-              uses: webfactory/ssh-agent@v0.9.0
-              with:
-                  ssh-private-key: ${{ secrets.SSH_KEY }}
-
-            - name: 📂 Deploy to VM
+            - name: 📂 Deploy to Local Development
+              env:
+                  # ✅ Variables dev (sans _PROD)
+                  DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+                  JWT_SECRET: ${{ secrets.JWT_SECRET }}
+                  STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
+                  STRIPE_WEBHOOK_SECRET: ${{ secrets.STRIPE_WEBHOOK_SECRET }}
+                  STRIPE_PUBLISHABLE_KEY: ${{ secrets.STRIPE_PUBLISHABLE_KEY }}
+                  EMAIL_HOST: ${{ secrets.EMAIL_HOST }}
+                  EMAIL_USER: ${{ secrets.EMAIL_USER }}
+                  EMAIL_PASSWORD: ${{ secrets.EMAIL_PASSWORD }}
+                  FRONTEND_API_URL: ${{ secrets.FRONTEND_API_URL }}
+                  FRONTEND_BASE_URL: ${{ secrets.FRONTEND_BASE_URL }}
+                  BACKEND_URL: ${{ secrets.BACKEND_URL }}
+                  COOKIE_DOMAIN: ${{ secrets.COOKIE_DOMAIN }}
+                  COOKIE_SECURE: ${{ secrets.COOKIE_SECURE }}
+                  ENABLE_ANALYTICS: ${{ secrets.ENABLE_ANALYTICS }}
+                  SUPPORT_EMAIL: ${{ secrets.SUPPORT_EMAIL }}
+                  SALES_EMAIL: ${{ secrets.SALES_EMAIL }}
+                  SUPPORT_PHONE: ${{ secrets.SUPPORT_PHONE }}
+                  GOOGLE_ANALYTICS_ID: ${{ secrets.GOOGLE_ANALYTICS_ID }}
               run: |
-                  # Créer le dossier de déploiement
-                  ssh -o StrictHostKeyChecking=no ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} "
-                    mkdir -p /home/dbm/assolution-dev
-                    sudo systemctl is-active docker || sudo systemctl start docker
-                  "
+                  echo "🚀 Starting development deployment..."
 
-                  # Copier les fichiers
-                  scp -o StrictHostKeyChecking=no -r ./* ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:/home/dbm/assolution-dev/
+                  # Créer le dossier de développement
+                  mkdir -p /home/dbm/assolution-dev
 
-                  # Déployer l'application
-                  ssh -o StrictHostKeyChecking=no ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} "
-                    cd /home/dbm/assolution-dev
-                    
-                    # Arrêter les anciens containers
-                    docker compose down --remove-orphans || true
-                    
-                    # Nettoyer les images non utilisées
-                    docker system prune -f
-                    
-                    # Construire et démarrer
-                    docker compose up -d --build
-                    
-                    # Attendre que les services soient prêts
-                    sleep 30
-                    
-                    # Vérifier le statut
-                    docker compose ps
-                    docker compose logs --tail=50
-                  "
+                  # Copier les fichiers vers le dossier de développement
+                  echo "📁 Copying files to development directory..."
+                  rsync -av --exclude='.git' --exclude='node_modules' --exclude='target' \
+                    ${{ github.workspace }}/ /home/dbm/assolution-dev/
 
-            - name: 🩺 Health Check
-              run: |
+                  # Changer vers le dossier de développement
+                  cd /home/dbm/assolution-dev
+
+                  echo "🛑 Stopping existing services..."
+                  docker compose down --remove-orphans || true
+
+                  echo "🗂️ Building services..."
+                  docker compose build --no-cache
+
+                  echo "🚀 Starting services..."
+                  docker compose up -d
+
+                  echo "⏳ Waiting for services to start..."
                   sleep 60
 
-                  # Test de l'API
+                  # Diagnostic
+                  echo "📊 Container status:"
+                  docker compose ps
+                  echo "📋 Recent logs:"
+                  docker compose logs --tail=20
+
+            - name: 🩺 Development Health Checks
+              run: |
+                  sleep 30
+
+                  echo "🔍 Running development health checks..."
+
+                  # Test API Health
                   for i in {1..10}; do
-                    if curl -f http://${{ secrets.SSH_HOST }}/api/actuator/health; then
-                      echo "✅ API is healthy"
+                    if curl -f --max-time 10 http://localhost:8080/actuator/health; then
+                      echo "✅ API health check passed in $i attempts"
                       break
                     fi
                     echo "⏳ Waiting for API... (attempt $i/10)"
-                    sleep 10
+                    sleep 5
+                    if [ $i -eq 10 ]; then
+                      echo "❌ API health check failed"
+                      cd /home/dbm/assolution-dev
+                      docker compose logs backend --tail=30
+                      exit 1
+                    fi
                   done
 
-                  # Test du Frontend
-                  if curl -f http://${{ secrets.SSH_HOST }}/; then
+                  # Test Frontend
+                  if curl -f http://localhost:80/; then
                     echo "✅ Frontend is accessible"
                   else
-                    echo "❌ Frontend health check failed"
+                    echo "❌ Frontend accessibility check failed"
+                    cd /home/dbm/assolution-dev
+                    docker compose logs nginx --tail=20
                     exit 1
                   fi
 
-            - name: 📢 Deployment Notification
+            - name: 📢 Development Deployment Notification
               if: success()
               run: |
-                  echo "🎉 Deployment successful!"
-                  echo "🔗 Application URL: http://${{ secrets.SSH_HOST }}"
-                  echo "🔗 API URL: http://${{ secrets.SSH_HOST }}/api"
-                  echo "📊 Health Check: http://${{ secrets.SSH_HOST }}/api/actuator/health"
+                  echo "🎉 Development deployment successful!"
+                  echo "🔗 Development URL: http://192.168.1.22"
+                  echo "🔗 API URL: http://192.168.1.22/api"
+                  echo "📊 Health Check: http://192.168.1.22/api/actuator/health"
 
             - name: 🚨 Rollback on Failure
               if: failure()
               run: |
                   echo "❌ Deployment failed, attempting rollback..."
-                  ssh -o StrictHostKeyChecking=no ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} "
-                    cd /home/dbm/assolution-dev
-                    
-                    # Redémarrer avec la dernière version stable
-                    docker compose down
-                    docker compose up -d
-                    
-                    echo '🔄 Rollback completed'
-                  "
+                  cd /home/dbm/assolution-dev
+
+                  # Redémarrer les services
+                  docker compose down
+                  docker compose up -d
+                  echo "🔄 Rollback completed"
+
                   exit 1

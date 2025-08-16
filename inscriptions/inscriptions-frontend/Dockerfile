@@ -1,74 +1,103 @@
-# Frontend Dockerfile pour Development
-FROM node:22-alpine
+# Frontend Dockerfile pour Development - Build statique
+FROM node:22-alpine AS builder
 
-# Métadonnées
-LABEL maintainer="Assolution Team"
-LABEL version="1.0"
-LABEL description="Assolution Frontend - Development"
-
-# Variables d'environnement
 ENV NODE_ENV=development
 ENV NG_CLI_ANALYTICS=false
-ENV BACKEND_URL=http://localhost:8080
 
-# Installation des outils système
-RUN apk add --no-cache \
-    curl \
-    bash \
-    git
+# Installation des outils
+RUN apk add --no-cache git python3 make g++ curl bash gettext
 
-# Installation d'Angular CLI globalement
-RUN npm install -g @angular/cli@20
+WORKDIR /build
 
-# Création d'un utilisateur non-root
-RUN addgroup -g 1001 -S nodejs && \
-    adduser -S angular -u 1001 -G nodejs
+# ✅ CORRIGÉ: Copier les package files depuis le bon contexte
+COPY inscriptions/inscriptions-frontend/package.json inscriptions/inscriptions-frontend/package-lock.json ./
 
-# Répertoire de travail
-WORKDIR /app
-
-# Copie des fichiers de configuration des dépendances
-COPY package*.json ./
+# Vérifier les fichiers
+RUN ls -la package*.json
 
 # Installation des dépendances
-RUN npm ci --only=production=false
+RUN npm ci --no-audit --no-fund
 
-# Copie du code source
-COPY --chown=angular:nodejs . .
+# ✅ Copier le template d'environnement dev si disponible
+COPY config-templates/environment.ts.template /tmp/environment.ts.template 2>/dev/null || echo "No dev template found"
 
-# Changement vers l'utilisateur non-root
-USER angular
+# Copier le code source
+COPY inscriptions/inscriptions-frontend/ .
 
-# Port exposé
-EXPOSE 4200
+# ✅ Générer environment.ts pour dev
+RUN echo "🔧 Setting up development environment..." && \
+    if [ -f "/tmp/environment.ts.template" ]; then \
+        echo "📋 Using template for development environment..." && \
+        export FRONTEND_API_URL="${FRONTEND_API_URL:-http://localhost:8080}" && \
+        export FRONTEND_BASE_URL="${FRONTEND_BASE_URL:-http://localhost:4200}" && \
+        export STRIPE_PUBLISHABLE_KEY="${STRIPE_PUBLISHABLE_KEY:-pk_test_placeholder}" && \
+        export ENABLE_ANALYTICS="${ENABLE_ANALYTICS:-false}" && \
+        export ENABLE_HTTPS_REDIRECT="${ENABLE_HTTPS_REDIRECT:-false}" && \
+        export SUPPORT_EMAIL="${SUPPORT_EMAIL:-dev-support@assolution.local}" && \
+        export SALES_EMAIL="${SALES_EMAIL:-dev-sales@assolution.local}" && \
+        export SUPPORT_PHONE="${SUPPORT_PHONE:-+33 1 23 45 67 89}" && \
+        export COOKIE_DOMAIN="${COOKIE_DOMAIN:-localhost}" && \
+        export COOKIE_SECURE="${COOKIE_SECURE:-false}" && \
+        export GOOGLE_ANALYTICS_ID="${GOOGLE_ANALYTICS_ID:-}" && \
+        envsubst < /tmp/environment.ts.template > src/environments/environment.ts; \
+    elif [ ! -f "src/environments/environment.ts" ]; then \
+        echo "⚠️ Creating basic development environment..." && \
+        echo 'export const environment = {' > src/environments/environment.ts && \
+        echo '  production: false,' >> src/environments/environment.ts && \
+        echo '  development: true,' >> src/environments/environment.ts && \
+        echo "  apiUrl: 'http://localhost:8080'," >> src/environments/environment.ts && \
+        echo "  baseUrl: 'http://localhost:4200'," >> src/environments/environment.ts && \
+        echo "  appName: 'Assolution (Dev)'," >> src/environments/environment.ts && \
+        echo "  appVersion: '1.0.0-dev'" >> src/environments/environment.ts && \
+        echo '};' >> src/environments/environment.ts; \
+    fi && \
+    echo "✅ Environment configured for development"
 
-# Script de démarrage pour le développement
-COPY --chown=angular:nodejs <<EOF /app/start-dev.sh
-#!/bin/bash
-set -e
+# Build Angular pour dev (production build mais avec config dev)
+RUN echo "🎨 Building Angular application for development..." && \
+    npm run build && \
+    echo "✅ Angular dev build completed!"
 
-echo "🎨 Starting Assolution Frontend (Development)"
-echo "📊 Node Version: \$(node --version)"
-echo "📊 Angular CLI Version: \$(ng --version | head -n 1)"
-echo "🔧 Environment: \${NODE_ENV}"
-echo "🔗 Backend URL: \${BACKEND_URL}"
+# Vérification et copie des fichiers
+RUN echo "📦 Preparing build artifacts..." && \
+    mkdir -p /build/final_dist && \
+    if [ -f "/build/dist/inscriptions-frontend/browser/index.html" ]; then \
+        cp -r /build/dist/inscriptions-frontend/browser/* /build/final_dist/; \
+    elif [ -f "/build/dist/inscriptions-frontend/index.html" ]; then \
+        cp -r /build/dist/inscriptions-frontend/* /build/final_dist/; \
+    elif [ -f "/build/dist/browser/index.html" ]; then \
+        cp -r /build/dist/browser/* /build/final_dist/; \
+    elif [ -f "/build/dist/index.html" ]; then \
+        cp -r /build/dist/* /build/final_dist/; \
+    else \
+        echo "❌ No build output found!" && exit 1; \
+    fi && \
+    echo "✅ Dev build artifacts ready"
 
-# Vérifier si le backend est accessible (optionnel en dev)
-if [ ! -z "\${BACKEND_URL}" ] && [[ "\${BACKEND_URL}" != "http://localhost:8080" ]]; then
-    echo "⏳ Checking backend connectivity..."
-    timeout 30 bash -c 'until curl -f \${BACKEND_URL}/actuator/health 2>/dev/null; do sleep 2; done' || echo "⚠️  Backend not yet available, continuing anyway..."
-fi
+# Stage final pour dev
+FROM alpine:3.19 AS production
 
-# Démarrer le serveur de développement
-echo "🚀 Starting Angular development server..."
-exec ng serve --host 0.0.0.0 --port 4200 --poll 2000 --disable-host-check
-EOF
+RUN apk add --no-cache curl bash && \
+    mkdir -p /app/dist
 
-RUN chmod +x /app/start-dev.sh
+# Copier les fichiers buildés
+COPY --from=builder /build/final_dist/ /app/dist/
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
-  CMD curl -f http://localhost:4200 || exit 1
+# Vérification
+RUN echo "🔍 Development build verification:" && \
+    echo "📊 Files: $(find /app/dist -type f | wc -l)" && \
+    echo "📊 Size: $(du -sh /app/dist | cut -f1)" && \
+    ls -la /app/dist/index.html && echo "✅ index.html OK" || echo "❌ index.html missing"
 
-# Point d'entrée
-ENTRYPOINT ["/app/start-dev.sh"]
+# Script simple pour dev
+RUN echo '#!/bin/bash' > /app/dev-verify.sh && \
+    echo 'echo "🎨 Assolution Frontend - Development Build Ready"' >> /app/dev-verify.sh && \
+    echo 'echo "📅 Built: $(date)"' >> /app/dev-verify.sh && \
+    echo 'echo "📊 Files: $(find /app/dist -type f | wc -l)"' >> /app/dev-verify.sh && \
+    echo 'ls -la /app/dist/' >> /app/dev-verify.sh && \
+    echo 'echo "✅ Development frontend ready for nginx"' >> /app/dev-verify.sh && \
+    echo 'tail -f /dev/null' >> /app/dev-verify.sh && \
+    chmod +x /app/dev-verify.sh
+
+WORKDIR /app
+CMD ["/app/dev-verify.sh"]

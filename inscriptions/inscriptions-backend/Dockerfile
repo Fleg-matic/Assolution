@@ -1,79 +1,114 @@
-# inscriptions/inscriptions-backend/Dockerfile (Development)
+# Backend Dockerfile pour Development - Corrigé
+FROM maven:3.9.6-eclipse-temurin-21 AS builder
 
-# Backend Dockerfile pour Development
-FROM eclipse-temurin:21-jdk as builder
+WORKDIR /build
 
-# Métadonnées
-LABEL maintainer="Assolution Team"
-LABEL version="1.0"
-LABEL description="Assolution Backend - Development"
+# ✅ CORRIGÉ: Copier depuis le contexte racine
+COPY config-templates/ ../config-templates/
+COPY inscriptions/inscriptions-backend/pom.xml .
+COPY inscriptions/inscriptions-backend/src ./src
 
-# Variables d'environnement
-ENV JAVA_HOME=/usr/local/openjdk-21
-ENV SPRING_PROFILES_ACTIVE=dev
-ENV SERVER_PORT=8080
+# Vérifier la structure du projet
+RUN echo "🔍 Project structure:" && \
+    ls -la . && \
+    echo "📄 Maven version:" && \
+    mvn --version
 
-# Installation des outils nécessaires
-RUN apt-get update && apt-get install -y \
-    curl \
-    wget \
-    netcat-traditional \
-    && rm -rf /var/lib/apt/lists/*
+# ✅ UTILISER LE TEMPLATE si disponible, sinon utiliser le fichier existant
+RUN echo "📋 Setting up application.properties..." && \
+    if [ -f "../config-templates/application.properties.template" ]; then \
+        echo "✅ Template found, copying from config-templates..." && \
+        cp ../config-templates/application.properties.template src/main/resources/application.properties; \
+    elif [ -f "src/main/resources/application.properties" ]; then \
+        echo "✅ Using existing application.properties"; \
+    else \
+        echo "⚠️ No configuration found, creating basic one..." && \
+        echo "spring.application.name=assolution-backend" > src/main/resources/application.properties && \
+        echo "server.port=8080" >> src/main/resources/application.properties; \
+    fi
 
-# Création du répertoire de travail
+# Build optimisé pour dev
+RUN echo "🔨 Building with Maven (dev)..." && \
+    mvn clean package -DskipTests --batch-mode --no-transfer-progress
+
+# Trouver et copier le JAR
+RUN echo "📦 Checking build artifacts:" && \
+    ls -la target/ && \
+    JAR_FILE=$(find target/ -name "*.jar" -not -name "*-sources.jar" -not -name "*-javadoc.jar" | head -1) && \
+    echo "✅ Found JAR: $JAR_FILE" && \
+    cp "$JAR_FILE" /build/app.jar
+
+# Stage final
+FROM eclipse-temurin:21-jre-jammy
+
+# Installation des outils essentiels avec retry
+RUN for i in 1 2 3; do \
+        apt-get update && \
+        apt-get install -y --no-install-recommends tini curl netcat-openbsd && \
+        rm -rf /var/lib/apt/lists/* && \
+        apt-get clean && break || \
+        (echo "Attempt $i failed, retrying..." && sleep 10); \
+    done
+
+# Créer utilisateur non-root
+RUN groupadd -g 1001 appuser && \
+    useradd -r -u 1001 -g appuser appuser
+
+# Créer répertoires
 WORKDIR /app
+RUN mkdir -p /app/logs && \
+    chown -R appuser:appuser /app && \
+    chmod -R 755 /app
 
-# Copie du fichier Maven wrapper et pom.xml pour cache des dépendances
-COPY .mvn/ .mvn/
-COPY mvnw pom.xml ./
-RUN chmod +x mvnw
+# Copier le JAR
+COPY --from=builder --chown=appuser:appuser /build/app.jar /app/app.jar
 
-# Téléchargement des dépendances (mise en cache Docker)
-RUN ./mvnw dependency:go-offline -B
-
-# Copie du code source
-COPY src/ ./src/
-
-# Construction de l'application
-RUN ./mvnw clean package -DskipTests
-
-# Création d'un utilisateur non-root
-RUN groupadd -r appuser && useradd -r -g appuser appuser
-RUN chown -R appuser:appuser /app
-USER appuser
-
-# Port exposé
-EXPOSE 8080
-
-# Script de démarrage avec health check
-COPY --chown=appuser:appuser <<EOF /app/start.sh
+# Script de démarrage dev
+COPY --chown=appuser:appuser <<EOF /app/start-dev.sh
 #!/bin/bash
 set -e
 
 echo "🚀 Starting Assolution Backend (Development)"
-echo "📊 Java Version: \$(java -version 2>&1 | head -n 1)"
-echo "🔧 Active Profile: \${SPRING_PROFILES_ACTIVE}"
-echo "💾 Database Host: \${DB_HOST}"
+echo "📊 Java Version: \$(java -version 2>&1 | head -1)"
+echo "🔧 Active Profile: \${SPRING_PROFILES_ACTIVE:-dev}"
+echo "💾 Database Host: \${DB_HOST:-postgres}"
 
-# Attendre que la base de données soit prête
+# Variables pour dev
+echo "🔍 Environment variables:"
+echo "DB_HOST: \${DB_HOST:-NOT_SET}"
+echo "DB_USER: \${DB_USER:-NOT_SET}"
+echo "JWT_SECRET: \${JWT_SECRET:+SET}"
+
+# Attendre la base de données
 echo "⏳ Waiting for database..."
-while ! nc -z \${DB_HOST:-postgres} \${DB_PORT:-5432}; do
-  sleep 1
+TIMEOUT=60
+COUNT=0
+while ! timeout 3 nc -z \${DB_HOST:-postgres} \${DB_PORT:-5432} 2>/dev/null; do 
+    COUNT=\$((COUNT + 1))
+    if [ \$COUNT -gt \$TIMEOUT ]; then
+        echo "❌ Database timeout after \${TIMEOUT} seconds"
+        exit 1
+    fi
+    echo "Waiting... (\$COUNT/\$TIMEOUT)"
+    sleep 1
 done
-echo "✅ Database is ready!"
+echo "✅ Database ready!"
 
 # Démarrer l'application
-exec java \
-  -Djava.security.egd=file:/dev/./urandom \
-  -Dspring.profiles.active=\${SPRING_PROFILES_ACTIVE:-dev} \
-  -jar target/*.jar
+echo "🚀 Starting Spring Boot application..."
+exec java \${JAVA_OPTS:-"-Xmx256m -Xms128m"} \\
+    -Djava.security.egd=file:/dev/./urandom \\
+    -Dspring.profiles.active=\${SPRING_PROFILES_ACTIVE:-dev} \\
+    -Dserver.port=\${SERVER_PORT:-8080} \\
+    -jar /app/app.jar
 EOF
 
-RUN chmod +x /app/start.sh
+RUN chmod +x /app/start-dev.sh
 
-# Health check
+USER appuser
+EXPOSE 8080
+
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
-  CMD curl -f http://localhost:8080/actuator/health || exit 1
+    CMD curl -f http://localhost:8080/actuator/health || exit 1
 
-# Point d'entrée
-ENTRYPOINT ["/app/start.sh"]
+ENTRYPOINT ["tini", "--", "/app/start-dev.sh"]
