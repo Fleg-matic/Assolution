@@ -378,40 +378,6 @@ jobs:
               with:
                   fetch-depth: 0
 
-            # ✅ TEST DE DEBUG - AJOUTÉ EN PREMIER
-            - name: 🧪 Test Environment Variables DEBUG
-              env:
-                  DB_PASSWORD_PROD: ${{ secrets.DB_PASSWORD_PROD }}
-                  JWT_SECRET_PROD: ${{ secrets.JWT_SECRET_PROD }}
-                  ADMIN_PASSWORD_PROD: ${{ secrets.ADMIN_PASSWORD_PROD }}
-                  EMAIL_HOST_PROD: ${{ secrets.EMAIL_HOST_PROD }}
-                  STRIPE_SECRET_KEY_PROD: ${{ secrets.STRIPE_SECRET_KEY_PROD }}
-              run: |
-                  echo "🔍 Testing environment variables:"
-                  echo "DB_PASSWORD_PROD: ${DB_PASSWORD_PROD:+PRESENT ($(echo $DB_PASSWORD_PROD | wc -c) chars)}"
-                  echo "JWT_SECRET_PROD: ${JWT_SECRET_PROD:+PRESENT}"
-                  echo "ADMIN_PASSWORD_PROD: ${ADMIN_PASSWORD_PROD:+PRESENT}"
-                  echo "EMAIL_HOST_PROD: ${EMAIL_HOST_PROD:+PRESENT}"
-                  echo "STRIPE_SECRET_KEY_PROD: ${STRIPE_SECRET_KEY_PROD:+PRESENT}"
-
-                  echo ""
-                  echo "🔍 Complete environment check:"
-                  echo "Total environment variables: $(env | wc -l)"
-                  echo "GitHub-related vars:"
-                  env | grep -E "^(GITHUB_|RUNNER_)" | head -5
-
-                  echo ""
-                  if [ -z "$DB_PASSWORD_PROD" ]; then
-                    echo "❌ DB_PASSWORD_PROD is empty!"
-                    echo "Available secrets starting with DB_:"
-                    env | grep "DB_" || echo "No DB_ vars found"
-                    echo "Available secrets containing PASSWORD or SECRET:"
-                    env | grep -E "(SECRET|PASSWORD|TOKEN)" | cut -d= -f1 | head -10
-                    exit 1
-                  else
-                    echo "✅ DB_PASSWORD_PROD is properly set with $(echo $DB_PASSWORD_PROD | wc -c) characters"
-                  fi
-
             - name: 🔍 System Info
               run: |
                   echo "🖥️ Running on local VM:"
