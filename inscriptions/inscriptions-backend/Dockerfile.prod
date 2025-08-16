@@ -111,10 +111,8 @@ while ! timeout 3 nc -z \${DB_HOST} \${DB_PORT:-5432} 2>/dev/null; do
 done
 echo "✅ Database connection established in \${COUNT} seconds!"
 
-# ✅ OPTIMISATIONS JVM POUR DÉMARRAGE RAPIDE
+# ✅ OPTIMISATIONS JVM POUR DÉMARRAGE RAPIDE - COMPATIBLES JAVA 21
 export JAVA_OPTS="\${JAVA_OPTS} -Djava.security.egd=file:/dev/./urandom"
-export JAVA_OPTS="\${JAVA_OPTS} -XX:+UnlockExperimentalVMOptions"
-export JAVA_OPTS="\${JAVA_OPTS} -XX:+UseCGroupMemoryLimitForHeap"
 export JAVA_OPTS="\${JAVA_OPTS} -Djava.awt.headless=true"
 export JAVA_OPTS="\${JAVA_OPTS} -Dfile.encoding=UTF-8"
 export JAVA_OPTS="\${JAVA_OPTS} -Duser.timezone=Europe/Paris"
