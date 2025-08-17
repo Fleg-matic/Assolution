@@ -19,9 +19,10 @@ RUN ls -la package*.json
 RUN npm ci --no-audit --no-fund
 
 # Copier le template d'environnement dev si disponible
-RUN if [ -f config-templates/environment.ts.template ]; 
-    then \ cp config-templates/environment.ts template /tmp/environment.ts.template; \
-    else \ echo "No dev template found"; \
+RUN if [ -f config-templates/environment.ts.template ]; then \
+      cp config-templates/environment.ts.template /tmp/environment.ts.template; \
+    else \
+      echo "No dev template found"; \
     fi
 
 # Copier le code source
