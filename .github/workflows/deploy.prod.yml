@@ -126,22 +126,29 @@ jobs:
             - name: 📦 Frontend Tests & Build
               working-directory: ./inscriptions/inscriptions-frontend
               run: |
-                  echo "🔧 Installing Angular dependencies..."
+                  echo "📧 Installing Angular dependencies..."
                   npm install
 
-                  # ✅ Debug des tests
-                  echo "🔍 Checking test configuration files..."
-                  ls -la karma.conf.js src/test.ts || echo "Missing test config"
-
-                  echo "🔍 Checking for missing dependencies..."
-                  npm list @angular/core @angular/testing || echo "Dependencies check"
-
-                  # Test avec plus de logs
                   echo "🧪 Running tests with debug..."
                   npm run test:ci -- --verbose || echo "Tests failed"
 
                   echo "🗂️ Building production app..."
                   npm run build:prod
+
+                  echo "🔍 DEBUG: Checking build output structure..."
+                  echo "📁 Contents of dist/:"
+                  ls -la dist/ || echo "No dist directory"
+
+                  echo "📁 Contents of dist/inscriptions-frontend/:"
+                  ls -la dist/inscriptions-frontend/ || echo "No inscriptions-frontend directory"
+
+                  echo "📁 Looking for browser subdirectory:"
+                  ls -la dist/inscriptions-frontend/browser/ || echo "No browser subdirectory"
+
+                  echo "🔍 Searching for index.html:"
+                  find dist/ -name "index.html" -type f || echo "No index.html found"
+
+                  echo "✅ Build structure analysis completed"
 
             - name: 📊 SonarQube Analysis
               working-directory: ./inscriptions/inscriptions-backend

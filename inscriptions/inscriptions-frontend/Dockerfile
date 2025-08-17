@@ -66,15 +66,22 @@ RUN echo "🎨 Building Angular application for development..." && \
 RUN echo "📦 Preparing build artifacts..." && \
     mkdir -p /build/final_dist && \
     if [ -f "/build/dist/inscriptions-frontend/browser/index.html" ]; then \
+        echo "✅ Angular 20+ structure detected (browser/)" && \
         cp -r /build/dist/inscriptions-frontend/browser/* /build/final_dist/; \
-    elif [ -f "/build/dist/inscriptions-frontend/index.html" ]; then \
-        cp -r /build/dist/inscriptions-frontend/* /build/final_dist/; \
     elif [ -f "/build/dist/browser/index.html" ]; then \
+        echo "✅ Angular 20+ structure detected (browser/)" && \
         cp -r /build/dist/browser/* /build/final_dist/; \
+    elif [ -f "/build/dist/inscriptions-frontend/index.html" ]; then \
+        echo "✅ Legacy Angular structure detected" && \
+        cp -r /build/dist/inscriptions-frontend/* /build/final_dist/; \
     elif [ -f "/build/dist/index.html" ]; then \
+        echo "✅ Simple dist structure detected" && \
         cp -r /build/dist/* /build/final_dist/; \
     else \
-        echo "❌ No build output found!" && exit 1; \
+        echo "❌ No build output found!" && \
+        echo "📁 Available structure:" && \
+        find /build/dist -type f -name "*.html" 2>/dev/null || echo "No HTML files found" && \
+        exit 1; \
     fi && \
     echo "✅ Dev build artifacts ready"
 

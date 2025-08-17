@@ -117,23 +117,23 @@ RUN echo "📦 SMART COPY OF BUILD ARTIFACTS:" && \
     mkdir -p /build/final_dist && \
     BUILD_COPIED=false && \
     if [ -f "/build/dist/inscriptions-frontend/browser/index.html" ]; then \
-        echo "✅ Method 1: Found Angular 17+ files in browser subdirectory" && \
+        echo "✅ Method 1: Found Angular 20+ files in browser subdirectory" && \
         cp -r /build/dist/inscriptions-frontend/browser/* /build/final_dist/ && \
         BUILD_COPIED=true; \
-    elif [ -f "/build/dist/inscriptions-frontend/index.html" ]; then \
-        echo "✅ Method 2: Found Angular files in project subdirectory" && \
-        cp -r /build/dist/inscriptions-frontend/* /build/final_dist/ && \
-        BUILD_COPIED=true; \
     elif [ -f "/build/dist/browser/index.html" ]; then \
-        echo "✅ Method 3: Found Angular files in browser directory" && \
+        echo "✅ Method 2: Found Angular files in browser directory" && \
         cp -r /build/dist/browser/* /build/final_dist/ && \
         BUILD_COPIED=true; \
+    elif [ -f "/build/dist/inscriptions-frontend/index.html" ]; then \
+        echo "✅ Method 3: Found Angular files in project subdirectory (legacy)" && \
+        cp -r /build/dist/inscriptions-frontend/* /build/final_dist/ && \
+        BUILD_COPIED=true; \
     elif [ -f "/build/dist/index.html" ]; then \
-        echo "✅ Method 4: Found Angular files in root dist" && \
+        echo "✅ Method 4: Found Angular files in root dist (legacy)" && \
         cp -r /build/dist/* /build/final_dist/ && \
         BUILD_COPIED=true; \
     else \
-        echo "⚠️  Method 5: Fallback - copying all dist content..." && \
+        echo "⚠️ Method 5: Fallback - copying all dist content..." && \
         if [ -d "/build/dist" ]; then \
             cp -r /build/dist/* /build/final_dist/ 2>/dev/null || true && \
             BUILD_COPIED=true; \
@@ -143,7 +143,7 @@ RUN echo "📦 SMART COPY OF BUILD ARTIFACTS:" && \
         echo "✅ Build artifacts copied successfully" && \
         echo "📊 Final dist file count: $(find /build/final_dist -type f 2>/dev/null | wc -l)" && \
         echo "📊 Final dist size: $(du -sh /build/final_dist 2>/dev/null | cut -f1 || echo 'unknown')" && \
-        echo "🔍 Key files present:" && \
+        echo "📁 Key files present:" && \
         ls -la /build/final_dist/index.html 2>/dev/null || echo "❌ index.html missing" && \
         ls -la /build/final_dist/main.*.js 2>/dev/null | head -3 || echo "❌ main.js files missing"; \
     else \
