@@ -91,6 +91,19 @@ app-root {
   height: 100vh;
 }
 
+.dev-banner {
+  background: orange !important;
+  color: white !important;
+  text-align: center !important;
+  padding: 10px !important;
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  z-index: 9999 !important;
+  font-weight: bold !important;
+}
+
 /* Styles des liens */
 a {
   color: var(--primary-color);
