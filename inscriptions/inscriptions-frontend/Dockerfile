@@ -59,7 +59,7 @@ RUN echo "🔧 Setting up development environment..." && \
 
 # Build Angular pour dev (production build mais avec config dev)
 RUN echo "🎨 Building Angular application for development..." && \
-    npm run build && \
+    npm run build:dev && \
     echo "✅ Angular dev build completed!"
 
 # Vérification et copie des fichiers
