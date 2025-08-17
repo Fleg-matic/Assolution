@@ -4,7 +4,7 @@
  */
 
 import { Component, OnInit, OnDestroy } from '@angular/core';
-import { CommonModule } from '@angular/common';
+
 import { RouterOutlet, RouterModule, Router, NavigationEnd } from '@angular/router';
 import { Subject, takeUntil, filter } from 'rxjs';
 
@@ -28,7 +28,6 @@ import { Title } from '@angular/platform-browser';
   selector: 'app-root',
   standalone: true,
   imports: [
-    CommonModule,
     RouterOutlet,
     RouterModule,
     MatToolbarModule,
@@ -38,8 +37,8 @@ import { Title } from '@angular/platform-browser';
     MatListModule,
     MatMenuModule,
     MatProgressBarModule,
-    NgxSpinnerModule,
-  ],
+    NgxSpinnerModule
+],
   templateUrl: './app.component.html',
   styleUrl: './app.component.scss',
 })

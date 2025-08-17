@@ -1,12 +1,12 @@
 import { Component } from '@angular/core';
-import { CommonModule } from '@angular/common';
+
 import { RouterModule } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 
 @Component({
   selector: 'app-not-found',
   standalone: true,
-  imports: [CommonModule, RouterModule, MatButtonModule],
+  imports: [RouterModule, MatButtonModule],
   template: `
     <div class="not-found-container">
       <h1>404</h1>

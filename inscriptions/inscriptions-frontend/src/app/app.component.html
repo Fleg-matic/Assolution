@@ -1,34 +1,48 @@
 <!-- Bannière d'environnement de développement -->
-<div @if (environment.showEnvironmentBanner) class="dev-banner">🧪 ENVIRONNEMENT DE DÉVELOPPEMENT 🧪</div>
+@if (environment.showEnvironmentBanner) {
+  <div class="dev-banner">🧪 ENVIRONNEMENT DE DÉVELOPPEMENT 🧪</div>
+}
 
 <div class="app-container">
   <!-- Barre de progression globale -->
-  <mat-progress-bar @if (isLoading) mode="indeterminate" class="global-progress-bar"> </mat-progress-bar>
+  @if (isLoading) {
+    <mat-progress-bar mode="indeterminate" class="global-progress-bar"></mat-progress-bar>
+  }
 
   <!-- Toolbar principale -->
   <mat-toolbar color="primary" class="app-toolbar">
-    <button mat-icon-button @if (!isLargeScreen) (click)="toggleSidenav()" aria-label="Menu">
-      <mat-icon>menu</mat-icon>
-    </button>
+    @if (!isLargeScreen) {
+      <button mat-icon-button (click)="toggleSidenav()" aria-label="Menu">
+        <mat-icon>menu</mat-icon>
+      </button>
+    }
 
     <span class="app-title">{{ appName }}</span>
 
     <div class="toolbar-spacer"></div>
 
     <!-- Navigation desktop -->
-    <nav class="desktop-nav" @if (isLargeScreen)>
-      <a mat-button routerLink="/home" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">
-        Accueil
-      </a>
-      <a mat-button routerLink="/inscriptions" routerLinkActive="active"> Inscriptions </a>
-      <a mat-button @if (isAuthenticated) routerLink="/profile" routerLinkActive="active"> Profil </a>
-      <a mat-button @if (isAdmin) routerLink="/admin" routerLinkActive="active"> Administration </a>
-    </nav>
+    @if (isLargeScreen) {
+      <nav class="desktop-nav">
+        <a mat-button routerLink="/home" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">
+          Accueil
+        </a>
+        <a mat-button routerLink="/inscriptions" routerLinkActive="active"> Inscriptions </a>
+        @if (isAuthenticated) {
+          <a mat-button routerLink="/profile" routerLinkActive="active"> Profil </a>
+        }
+        @if (isAdmin) {
+          <a mat-button routerLink="/admin" routerLinkActive="active"> Administration </a>
+        }
+      </nav>
+    }
 
     <!-- Menu utilisateur -->
-    <button mat-icon-button [matMenuTriggerFor]="userMenu" @if (isAuthenticated) aria-label="Menu utilisateur">
-      <mat-icon>account_circle</mat-icon>
-    </button>
+    @if (isAuthenticated) {
+      <button mat-icon-button [matMenuTriggerFor]="userMenu" aria-label="Menu utilisateur">
+        <mat-icon>account_circle</mat-icon>
+      </button>
+    }
 
     <!-- Boutons d'authentification -->
     @if (!isAuthenticated) {
@@ -137,40 +151,42 @@
       </div>
 
       <!-- Footer -->
-      <footer class="app-footer" @if (showFooter)>
-        <div class="footer-content">
-          <div class="footer-section">
-            <h4>{{ appName }}</h4>
-            <p>Plateforme d'inscriptions sécurisée</p>
+      @if (showFooter) {
+        <footer class="app-footer">
+          <div class="footer-content">
+            <div class="footer-section">
+              <h4>{{ appName }}</h4>
+              <p>Plateforme d'inscriptions sécurisée</p>
+            </div>
+
+            <div class="footer-section">
+              <h4>Contact</h4>
+              <p>
+                <mat-icon>email</mat-icon>
+                {{ contactEmail }}
+              </p>
+              <p>
+                <mat-icon>phone</mat-icon>
+                {{ contactPhone }}
+              </p>
+            </div>
+
+            <div class="footer-section">
+              <h4>Liens utiles</h4>
+              <a routerLink="/legal/privacy">Politique de confidentialité</a>
+              <a routerLink="/legal/terms">Conditions d'utilisation</a>
+              <a routerLink="/help">Aide</a>
+            </div>
           </div>
 
-          <div class="footer-section">
-            <h4>Contact</h4>
-            <p>
-              <mat-icon>email</mat-icon>
-              {{ contactEmail }}
-            </p>
-            <p>
-              <mat-icon>phone</mat-icon>
-              {{ contactPhone }}
-            </p>
+          <div class="footer-bottom">
+            <p>&copy; {{ currentYear }} {{ appName }}. Tous droits réservés.</p>
+            @if (environment.development) {
+              <p class="dev-info">Version {{ appVersion }} - Environnement de développement</p>
+            }
           </div>
-
-          <div class="footer-section">
-            <h4>Liens utiles</h4>
-            <a routerLink="/legal/privacy">Politique de confidentialité</a>
-            <a routerLink="/legal/terms">Conditions d'utilisation</a>
-            <a routerLink="/help">Aide</a>
-          </div>
-        </div>
-
-        <div class="footer-bottom">
-          <p>&copy; {{ currentYear }} {{ appName }}. Tous droits réservés.</p>
-          <p @if (environment.development) class="dev-info">
-            Version {{ appVersion }} - Environnement de développement
-          </p>
-        </div>
-      </footer>
+        </footer>
+      }
     </mat-sidenav-content>
   </mat-sidenav-container>
 

@@ -1,10 +1,10 @@
 import { Component } from '@angular/core';
-import { CommonModule } from '@angular/common';
+
 
 @Component({
   selector: 'app-my-inscriptions',
   standalone: true,
-  imports: [CommonModule],
+  imports: [],
   template: `
     <div class="my-inscriptions-container">
       <h1>Mes inscriptions</h1>
