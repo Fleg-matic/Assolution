@@ -3,7 +3,7 @@
   <div class="dev-banner">🧪 ENVIRONNEMENT DE DÉVELOPPEMENT 🧪</div>
 }
 
-<div class="app-container">
+<div class="app-container" [class.has-dev-banner]="environment.showEnvironmentBanner">
   <!-- Barre de progression globale -->
   @if (isLoading) {
     <mat-progress-bar mode="indeterminate" class="global-progress-bar"></mat-progress-bar>

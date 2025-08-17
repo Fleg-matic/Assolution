@@ -28,17 +28,16 @@
   }
 }
 
-/* Ajuster le contenu principal pour compenser la bannière */
+/* Ajuster l'app-container selon la présence de la bannière */
 .app-container {
   padding-top: 0;
+
+  &.has-dev-banner {
+    padding-top: 40px;
+  }
 }
 
-/* Si la bannière est présente, décaler le contenu */
-.dev-banner + .app-container {
-  padding-top: 40px; /* Hauteur approximative de la bannière */
-}
-
-/* Alternative: ajuster la toolbar */
-.dev-banner ~ .app-container .app-toolbar {
-  margin-top: 40px;
+/* Ajuster la toolbar spécifiquement */
+.app-container.has-dev-banner .app-toolbar {
+  margin-top: 0; /* Reset pour éviter un double décalage */
 }

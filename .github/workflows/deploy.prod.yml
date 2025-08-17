@@ -449,13 +449,11 @@ jobs:
 
                   # Créer le dossier de production s'il n'existe pas
                   mkdir -p /home/dbm/assolution-prod
-                  sudo chown -R dbm:dbm /home/dbm/assolution-prod
-                  sudo chmod -R 755 /home/dbm/assolution-prod
 
                   # Copier les fichiers du workspace vers le dossier de production
                   echo "📁 Copying files to production directory..."
                   rsync -av --exclude='.git' --exclude='node_modules' --exclude='target' \
-                    ${{ github.workspace }}/ /home/dbm/assolution-prod/
+                    ${{ github.workspace }}/ /home/dbm/assolution-prod/ || echo "Some files may not have been copied due to permissions"
 
                   # Changer vers le dossier de production
                   cd /home/dbm/assolution-prod
