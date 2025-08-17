@@ -1,0 +1,44 @@
+/* Bannière d'environnement de développement */
+.dev-banner {
+  background: linear-gradient(45deg, #ff6b35, #f7931e);
+  color: white;
+  text-align: center;
+  padding: 8px 16px;
+  font-weight: bold;
+  font-size: 14px;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 9999;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+  animation: pulse 2s infinite;
+}
+
+/* Animation pour attirer l'attention */
+@keyframes pulse {
+  0% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.8;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+/* Ajuster le contenu principal pour compenser la bannière */
+.app-container {
+  padding-top: 0;
+}
+
+/* Si la bannière est présente, décaler le contenu */
+.dev-banner + .app-container {
+  padding-top: 40px; /* Hauteur approximative de la bannière */
+}
+
+/* Alternative: ajuster la toolbar */
+.dev-banner ~ .app-container .app-toolbar {
+  margin-top: 40px;
+}

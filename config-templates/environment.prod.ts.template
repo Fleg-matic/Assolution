@@ -7,6 +7,7 @@
 export const environment = {
   production: true,
   development: false,
+  showEnvironmentBanner: false,
 
   // Configuration API
   apiUrl: '${FRONTEND_API_URL}',

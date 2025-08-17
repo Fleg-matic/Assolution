@@ -4,6 +4,7 @@
 export const environment = {
   production: false,
   development: true,
+  showEnvironmentBanner: true,
 
   // Configuration API
   apiUrl: 'http://localhost:8080',

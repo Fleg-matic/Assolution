@@ -1,10 +1,13 @@
+<!-- Bannière d'environnement de développement -->
+<div @if (environment.showEnvironmentBanner) class="dev-banner">🧪 ENVIRONNEMENT DE DÉVELOPPEMENT 🧪</div>
+
 <div class="app-container">
   <!-- Barre de progression globale -->
-  <mat-progress-bar *ngIf="isLoading" mode="indeterminate" class="global-progress-bar"> </mat-progress-bar>
+  <mat-progress-bar @if (isLoading) mode="indeterminate" class="global-progress-bar"> </mat-progress-bar>
 
   <!-- Toolbar principale -->
   <mat-toolbar color="primary" class="app-toolbar">
-    <button mat-icon-button *ngIf="!isLargeScreen" (click)="toggleSidenav()" aria-label="Menu">
+    <button mat-icon-button @if (!isLargeScreen) (click)="toggleSidenav()" aria-label="Menu">
       <mat-icon>menu</mat-icon>
     </button>
 
@@ -13,25 +16,25 @@
     <div class="toolbar-spacer"></div>
 
     <!-- Navigation desktop -->
-    <nav class="desktop-nav" *ngIf="isLargeScreen">
+    <nav class="desktop-nav" @if (isLargeScreen)>
       <a mat-button routerLink="/home" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">
         Accueil
       </a>
       <a mat-button routerLink="/inscriptions" routerLinkActive="active"> Inscriptions </a>
-      <a mat-button *ngIf="isAuthenticated" routerLink="/profile" routerLinkActive="active"> Profil </a>
-      <a mat-button *ngIf="isAdmin" routerLink="/admin" routerLinkActive="active"> Administration </a>
+      <a mat-button @if (isAuthenticated) routerLink="/profile" routerLinkActive="active"> Profil </a>
+      <a mat-button @if (isAdmin) routerLink="/admin" routerLinkActive="active"> Administration </a>
     </nav>
 
     <!-- Menu utilisateur -->
-    <button mat-icon-button [matMenuTriggerFor]="userMenu" *ngIf="isAuthenticated" aria-label="Menu utilisateur">
+    <button mat-icon-button [matMenuTriggerFor]="userMenu" @if (isAuthenticated) aria-label="Menu utilisateur">
       <mat-icon>account_circle</mat-icon>
     </button>
 
     <!-- Boutons d'authentification -->
-    <ng-container *ngIf="!isAuthenticated">
+    @if (!isAuthenticated) {
       <a mat-button routerLink="/auth/login" class="login-btn"> Connexion </a>
       <a mat-raised-button routerLink="/auth/register" class="register-btn"> Inscription </a>
-    </ng-container>
+    }
   </mat-toolbar>
 
   <!-- Menu utilisateur dropdown -->
@@ -72,7 +75,7 @@
           <span matListItemTitle>Inscriptions</span>
         </a>
 
-        <ng-container *ngIf="isAuthenticated">
+        @if (isAuthenticated) {
           <mat-divider></mat-divider>
 
           <h3 matSubheader>Mon compte</h3>
@@ -92,7 +95,7 @@
             <span matListItemTitle>Mes inscriptions</span>
           </a>
 
-          <ng-container *ngIf="isAdmin">
+          @if (isAdmin) {
             <mat-divider></mat-divider>
             <h3 matSubheader>Administration</h3>
 
@@ -100,7 +103,7 @@
               <mat-icon matListItemIcon>admin_panel_settings</mat-icon>
               <span matListItemTitle>Administration</span>
             </a>
-          </ng-container>
+          }
 
           <mat-divider></mat-divider>
 
@@ -108,9 +111,9 @@
             <mat-icon matListItemIcon>logout</mat-icon>
             <span matListItemTitle>Déconnexion</span>
           </button>
-        </ng-container>
+        }
 
-        <ng-container *ngIf="!isAuthenticated">
+        @if (!isAuthenticated) {
           <mat-divider></mat-divider>
 
           <a mat-list-item routerLink="/auth/login" (click)="closeSidenav()">
@@ -122,7 +125,7 @@
             <mat-icon matListItemIcon>person_add</mat-icon>
             <span matListItemTitle>Inscription</span>
           </a>
-        </ng-container>
+        }
       </mat-nav-list>
     </mat-sidenav>
 
@@ -134,7 +137,7 @@
       </div>
 
       <!-- Footer -->
-      <footer class="app-footer" *ngIf="showFooter">
+      <footer class="app-footer" @if (showFooter)>
         <div class="footer-content">
           <div class="footer-section">
             <h4>{{ appName }}</h4>
@@ -163,7 +166,7 @@
 
         <div class="footer-bottom">
           <p>&copy; {{ currentYear }} {{ appName }}. Tous droits réservés.</p>
-          <p *ngIf="environment.development" class="dev-info">
+          <p @if (environment.development) class="dev-info">
             Version {{ appVersion }} - Environnement de développement
           </p>
         </div>

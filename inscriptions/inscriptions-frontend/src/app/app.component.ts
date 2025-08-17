@@ -22,6 +22,7 @@ import { NgxSpinnerModule } from 'ngx-spinner';
 
 // Environment
 import { environment } from '../environments/environment';
+import { Title } from '@angular/platform-browser';
 
 @Component({
   selector: 'app-root',
@@ -65,11 +66,17 @@ export class AppComponent implements OnInit, OnDestroy {
   // Référence au sidenav
   private sidenavRef: any;
 
-  constructor(private router: Router) {
+  constructor(
+    private router: Router,
+    private titleService: Title
+  ) {
     // Écouter les changements de taille d'écran
     window.addEventListener('resize', () => {
       this.isLargeScreen = window.innerWidth >= 1024;
     });
+
+    const prefix = environment.production ? '' : '[DEV] ';
+    this.titleService.setTitle(`${prefix}Assolution - Inscriptions`);
   }
 
   ngOnInit(): void {
