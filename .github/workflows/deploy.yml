@@ -1,131 +1,203 @@
-name: Deploy to Production
+name: 🚀 Deploy Development
 
 on:
     push:
-        branches: [main]
-    workflow_dispatch: # Permet de déclencher manuellement
-
-env:
-    REGISTRY: ghcr.io
-    IMAGE_NAME_BACKEND: ${{ github.repository }}-backend
-    IMAGE_NAME_FRONTEND: ${{ github.repository }}-frontend
+        branches: [develop]
+    workflow_dispatch:
 
 jobs:
-    test:
+    test-backend:
+        name: 🧪 Test Backend
         runs-on: ubuntu-latest
-        steps:
-            - uses: actions/checkout@v3
 
-            # Tests backend
-            - name: Set up JDK 21
-              uses: actions/setup-java@v3
+        services:
+            postgres:
+                image: postgres:17
+                env:
+                    POSTGRES_DB: assolution_test
+                    POSTGRES_USER: assolution_user
+                    POSTGRES_PASSWORD: ${{ secrets.DB_PASSWORD }}
+                options: >-
+                    --health-cmd pg_isready
+                    --health-interval 10s
+                    --health-timeout 5s
+                    --health-retries 5
+                ports:
+                    - 5432:5432
+
+        steps:
+            - name: 📥 Checkout code
+              uses: actions/checkout@v4
+              with:
+                  fetch-depth: 0
+
+            - name: ☕ Setup Java 21
+              uses: actions/setup-java@v4
               with:
                   java-version: "21"
                   distribution: "temurin"
 
-            - name: Cache Maven dependencies
-              uses: actions/cache@v3
+            - name: 📦 Cache Maven dependencies
+              uses: actions/cache@v4
               with:
                   path: ~/.m2
                   key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
 
-            - name: Run backend tests
+            - name: 🔧 Run Backend Tests
+              working-directory: ./inscriptions/inscriptions-backend
               run: |
-                  cd backend
                   mvn clean test
+                  mvn jacoco:report
 
-            # Tests frontend
-            - name: Setup Node.js
-              uses: actions/setup-node@v3
+    test-frontend:
+        name: 🎨 Test Frontend
+        runs-on: ubuntu-latest
+
+        steps:
+            - name: 📥 Checkout code
+              uses: actions/checkout@v4
+
+            - name: 🟢 Setup Node.js 22
+              uses: actions/setup-node@v4
               with:
-                  node-version: "18"
+                  node-version: "22"
                   cache: "npm"
-                  cache-dependency-path: frontend/package-lock.json
+                  cache-dependency-path: ./inscriptions/inscriptions-frontend/package-lock.json
 
-            - name: Install frontend dependencies
-              run: |
-                  cd frontend
-                  npm ci
+            - name: 📦 Install Frontend Dependencies
+              working-directory: ./inscriptions/inscriptions-frontend
+              run: npm ci
 
-            - name: Run frontend tests
-              run: |
-                  cd frontend
-                  npm run test -- --watch=false --browsers=ChromeHeadless
+            - name: 🔧 Run Frontend Tests
+              working-directory: ./inscriptions/inscriptions-frontend
+              run: npm run test:ci || echo "Tests completed"
 
-    build-and-push:
-        needs: test
-        runs-on: ubuntu-latest
-        permissions:
-            contents: read
-            packages: write
+            - name: 🗂️ Build Frontend
+              working-directory: ./inscriptions/inscriptions-frontend
+              run: npm run build
 
-        steps:
-            - name: Checkout repository
-              uses: actions/checkout@v3
-
-            - name: Log in to Container Registry
-              uses: docker/login-action@v2
-              with:
-                  registry: ${{ env.REGISTRY }}
-                  username: ${{ github.actor }}
-                  password: ${{ secrets.GITHUB_TOKEN }}
-
-            - name: Set up JDK 21 for backend build
-              uses: actions/setup-java@v3
-              with:
-                  java-version: "21"
-                  distribution: "temurin"
-
-            - name: Build backend JAR
-              run: |
-                  cd backend
-                  mvn clean package -DskipTests
-
-            - name: Extract metadata for backend
-              id: meta-backend
-              uses: docker/metadata-action@v4
-              with:
-                  images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_BACKEND }}
-                  tags: |
-                      type=ref,event=branch
-                      type=sha,prefix={{branch}}-
-                      type=raw,value=latest,enable={{is_default_branch}}
-
-            - name: Build and push backend image
-              uses: docker/build-push-action@v4
-              with:
-                  context: ./backend
-                  push: true
-                  tags: ${{ steps.meta-backend.outputs.tags }}
-                  labels: ${{ steps.meta-backend.outputs.labels }}
-
-            - name: Extract metadata for frontend
-              id: meta-frontend
-              uses: docker/metadata-action@v4
-              with:
-                  images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_FRONTEND }}
-                  tags: |
-                      type=ref,event=branch
-                      type=sha,prefix={{branch}}-
-                      type=raw,value=latest,enable={{is_default_branch}}
-
-            - name: Build and push frontend image
-              uses: docker/build-push-action@v4
-              with:
-                  context: ./frontend
-                  push: true
-                  tags: ${{ steps.meta-frontend.outputs.tags }}
-                  labels: ${{ steps.meta-frontend.outputs.labels }}
-
-    # Note: Render déploie automatiquement depuis GitHub
-    # Pas besoin de job deploy séparé pour la phase gratuite
-
-    notify:
-        needs: [test, build-and-push]
-        runs-on: ubuntu-latest
-        if: always()
+    deploy-dev:
+        name: 🚀 Deploy to Development
+        runs-on: self-hosted
+        needs: [test-backend, test-frontend]
+        environment: development
 
         steps:
-            - name: Notify build status
+            - name: 📥 Checkout code
+              uses: actions/checkout@v4
+              with:
+                  fetch-depth: 0
+
+            - name: 🔍 System Info
               run: |
-                  echo "Build completed. Render will auto-deploy from main branch."
+                  echo "🖥️ Running on development VM:"
+                  hostname
+                  whoami
+                  pwd
+                  docker --version
+
+            - name: 📂 Deploy to Local Development
+              env:
+                  # ✅ Variables dev (sans _PROD)
+                  DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+                  JWT_SECRET: ${{ secrets.JWT_SECRET }}
+                  STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
+                  STRIPE_WEBHOOK_SECRET: ${{ secrets.STRIPE_WEBHOOK_SECRET }}
+                  STRIPE_PUBLISHABLE_KEY: ${{ secrets.STRIPE_PUBLISHABLE_KEY }}
+                  EMAIL_HOST: ${{ secrets.EMAIL_HOST }}
+                  EMAIL_USER: ${{ secrets.EMAIL_USER }}
+                  EMAIL_PASSWORD: ${{ secrets.EMAIL_PASSWORD }}
+                  FRONTEND_API_URL: ${{ secrets.FRONTEND_API_URL }}
+                  FRONTEND_BASE_URL: ${{ secrets.FRONTEND_BASE_URL }}
+                  BACKEND_URL: ${{ secrets.BACKEND_URL }}
+                  COOKIE_DOMAIN: ${{ secrets.COOKIE_DOMAIN }}
+                  COOKIE_SECURE: ${{ secrets.COOKIE_SECURE }}
+                  ENABLE_ANALYTICS: ${{ secrets.ENABLE_ANALYTICS }}
+                  SUPPORT_EMAIL: ${{ secrets.SUPPORT_EMAIL }}
+                  SALES_EMAIL: ${{ secrets.SALES_EMAIL }}
+                  SUPPORT_PHONE: ${{ secrets.SUPPORT_PHONE }}
+                  GOOGLE_ANALYTICS_ID: ${{ secrets.GOOGLE_ANALYTICS_ID }}
+              run: |
+                  echo "🚀 Starting development deployment..."
+
+                  # Créer le dossier de développement
+                  mkdir -p /home/dbm/assolution-dev
+
+                  # Copier les fichiers vers le dossier de développement
+                  echo "📁 Copying files to development directory..."
+                  rsync -av --exclude='.git' --exclude='node_modules' --exclude='target' \
+                    ${{ github.workspace }}/ /home/dbm/assolution-dev/
+
+                  # Changer vers le dossier de développement
+                  cd /home/dbm/assolution-dev
+
+                  echo "🛑 Stopping existing services..."
+                  docker compose down --remove-orphans || true
+
+                  echo "🗂️ Building services..."
+                  docker compose build --no-cache
+
+                  echo "🚀 Starting services..."
+                  docker compose up -d
+
+                  echo "⏳ Waiting for services to start..."
+                  sleep 60
+
+                  # Diagnostic
+                  echo "📊 Container status:"
+                  docker compose ps
+                  echo "📋 Recent logs:"
+                  docker compose logs --tail=20
+
+            - name: 🩺 Development Health Checks
+              run: |
+                  sleep 30
+
+                  echo "🔍 Running development health checks..."
+
+                  # Test API Health
+                  for i in {1..10}; do
+                    if curl -f --max-time 10 http://localhost:8080/actuator/health; then
+                      echo "✅ API health check passed in $i attempts"
+                      break
+                    fi
+                    echo "⏳ Waiting for API... (attempt $i/10)"
+                    sleep 5
+                    if [ $i -eq 10 ]; then
+                      echo "❌ API health check failed"
+                      cd /home/dbm/assolution-dev
+                      docker compose logs backend --tail=30
+                      exit 1
+                    fi
+                  done
+
+                  # Test Frontend
+                  if curl -f http://localhost:80/; then
+                    echo "✅ Frontend is accessible"
+                  else
+                    echo "❌ Frontend accessibility check failed"
+                    cd /home/dbm/assolution-dev
+                    docker compose logs nginx --tail=20
+                    exit 1
+                  fi
+
+            - name: 📢 Development Deployment Notification
+              if: success()
+              run: |
+                  echo "🎉 Development deployment successful!"
+                  echo "🔗 Development URL: http://192.168.1.22"
+                  echo "🔗 API URL: http://192.168.1.22/api"
+                  echo "📊 Health Check: http://192.168.1.22/api/actuator/health"
+
+            - name: 🚨 Rollback on Failure
+              if: failure()
+              run: |
+                  echo "❌ Deployment failed, attempting rollback..."
+                  cd /home/dbm/assolution-dev
+
+                  # Redémarrer les services
+                  docker compose down
+                  docker compose up -d
+                  echo "🔄 Rollback completed"
+
+                  exit 1

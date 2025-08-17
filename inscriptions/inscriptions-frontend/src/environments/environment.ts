@@ -1,105 +1,185 @@
-// inscriptions/inscription-frontend/src/environments/environment.ts
-
+/**
+ * Configuration de l'environnement de développement pour Assolution - Angular 20.1
+ */
 export const environment = {
   production: false,
+  development: true,
 
-  // API Configuration
-  apiUrl: "http://localhost:8080/api",
-  apiTimeout: 30000,
+  // Configuration API
+  apiUrl: 'http://localhost:8080',
+  apiTimeout: 60000, // 60 secondes pour le développement
 
-  // Application Info
-  appName: "Assolution Inscriptions",
-  appVersion: "1.0.0-dev",
+  // Configuration de l'application
+  appName: 'Assolution (Dev)',
+  appVersion: '1.0.0-dev',
 
-  // Features Flags
-  features: {
-    enableRegistration: true,
-    enablePayments: true,
-    enableNotifications: true,
-    enableAnalytics: false,
-    enableDebugMode: true,
-  },
+  // URLs et endpoints
+  baseUrl: 'http://localhost:4200',
+  assetsUrl: '/assets',
 
-  // Security
-  security: {
-    enableHttps: false,
-    tokenStorageKey: "assolution_token_dev",
-    refreshTokenStorageKey: "assolution_refresh_token_dev",
-    tokenExpirationBuffer: 300000, // 5 minutes in ms
-  },
-
-  // UI Configuration
-  ui: {
-    defaultLanguage: "fr",
-    availableLanguages: ["fr", "en"],
-    theme: "default",
-    enableDarkMode: true,
-    pageSize: 10, // Smaller for dev
-    maxFileSize: 10485760, // 10MB in bytes
-  },
-
-  // External Services
-  stripe: {
-    publishableKey: "pk_test_...", // Clé de test Stripe
-  },
-
-  // Monitoring & Analytics
-  monitoring: {
-    enableErrorReporting: true,
-    enablePerformanceMonitoring: false, // Disabled in dev
-    sampleRate: 1.0, // 100% sampling in dev
-  },
-
-  // Cache Configuration
-  cache: {
-    enableServiceWorker: false, // Disabled in dev
-    cacheTimeout: 300000, // 5 minutes in dev
-    enableOfflineMode: false,
-  },
-
-  // Logging
-  logging: {
-    level: "debug", // Verbose logging in dev
-    enableConsoleLog: true,
-    enableRemoteLogging: false, // Disabled in dev
-    remoteLogUrl: "/api/logs",
-  },
-
-  // Timeouts & Retries
-  http: {
-    timeout: 30000,
-    retryAttempts: 1, // Less retries in dev
-    retryDelay: 500,
-  },
-
-  // Social Auth (if needed)
+  // Configuration d'authentification
   auth: {
-    google: {
-      clientId: "your-google-client-id-dev.apps.googleusercontent.com",
-    },
-    facebook: {
-      appId: "your-facebook-app-id-dev",
-    },
+    tokenKey: 'assolution_dev_token',
+    refreshTokenKey: 'assolution_dev_refresh_token',
+    tokenExpiry: 3600000, // 1 heure
+    refreshTokenExpiry: 86400000, // 24 heures
+    autoRefresh: true,
+    loginUrl: '/auth/login',
+    logoutUrl: '/auth/logout',
+    registerUrl: '/auth/register',
+    profileUrl: '/auth/profile',
   },
 
-  // File Upload
-  upload: {
-    maxFileSize: 10485760, // 10MB
-    allowedTypes: ["image/jpeg", "image/png", "image/gif", "application/pdf"],
-    uploadUrl: "/api/files/upload",
+  // Configuration des fonctionnalités
+  features: {
+    registration: true,
+    payment: false, // Paiement désactivé en dev
+    notifications: true,
+    analytics: false, // Analytics désactivées en dev
+    errorReporting: false,
+    maintenanceMode: false,
   },
 
-  // Notifications
+  // Configuration de paiement (Stripe) - Mode test
+  payment: {
+    stripePublishableKey: 'pk_test_51234567890abcdef', // Clé de test
+    currency: 'EUR',
+    country: 'FR',
+  },
+
+  // Configuration des logs et monitoring
+  logging: {
+    level: 'debug', // Développement: tous les logs
+    enableConsoleLog: true,
+    enableRemoteLogging: false,
+    logEndpoint: '/api/logs',
+  },
+
+  // Configuration de performance
+  performance: {
+    enableServiceWorker: false,
+    enableLazyLoading: true,
+    enableCaching: false, // Cache désactivé en dev
+    cacheTimeout: 60000, // 1 minute
+    debounceTime: 300,
+    throttleTime: 1000,
+  },
+
+  // Configuration de sécurité (plus permissive en dev)
+  security: {
+    enableCSP: false,
+    enableXSRFProtection: false,
+    enableHttpsRedirect: false,
+    maxUploadSize: 52428800, // 50MB en dev
+    allowedFileTypes: ['.pdf', '.jpg', '.jpeg', '.png', '.doc', '.docx', '.txt', '.csv'],
+  },
+
+  // Configuration de l'interface utilisateur
+  ui: {
+    theme: 'light',
+    language: 'fr',
+    dateFormat: 'dd/MM/yyyy',
+    currencyFormat: 'EUR',
+    timezone: 'Europe/Paris',
+    itemsPerPage: 10, // Plus petit en dev pour tester
+    maxRetries: 3,
+  },
+
+  // Configuration des notifications
   notifications: {
-    enablePushNotifications: false, // Disabled in dev
-    vapidPublicKey: "your-vapid-public-key-dev",
+    position: 'top-right',
+    timeout: 5000,
+    showProgress: true,
+    enableSound: false,
+    maxNotifications: 5,
   },
 
-  // URLs
-  urls: {
-    termsOfService: "/terms",
-    privacyPolicy: "/privacy",
-    support: "/support",
-    documentation: "/docs",
+  // URLs de contact et support
+  contact: {
+    supportEmail: 'dev-support@assolution.local',
+    salesEmail: 'dev-commercial@assolution.local',
+    phoneNumber: '+33 1 23 45 67 89',
+    address: 'Environnement de développement',
+  },
+
+  // Configuration des cookies
+  cookies: {
+    domain: 'localhost',
+    secure: false,
+    sameSite: 'Lax',
+    expires: 30, // jours
+  },
+
+  // Analytics et tracking (désactivées en dev)
+  analytics: {
+    googleAnalyticsId: 'DEV_GA_ID',
+    enableTracking: false,
+    trackPageViews: false,
+    trackEvents: false,
+  },
+
+  // Configuration de développement (activées)
+  debug: {
+    enableDebugInfo: true,
+    showApiCalls: true,
+    showPerformanceMetrics: true,
+    enableMockData: true,
+  },
+
+  // Endpoints API spécifiques
+  endpoints: {
+    // Authentification
+    login: '/auth/login',
+    logout: '/auth/logout',
+    register: '/auth/register',
+    refreshToken: '/auth/refresh',
+    forgotPassword: '/auth/forgot-password',
+    resetPassword: '/auth/reset-password',
+
+    // Utilisateurs
+    users: '/users',
+    profile: '/users/profile',
+
+    // Inscriptions
+    inscriptions: '/inscriptions',
+    myInscriptions: '/inscriptions/my',
+
+    // Paiements
+    payments: '/payments',
+    paymentMethods: '/payments/methods',
+    invoices: '/payments/invoices',
+
+    // Fichiers
+    upload: '/files/upload',
+    download: '/files/download',
+
+    // Administration
+    admin: '/admin',
+    stats: '/admin/stats',
+    reports: '/admin/reports',
+
+    // Système
+    health: '/actuator/health',
+    version: '/actuator/info',
+  },
+
+  // Messages d'erreur personnalisés
+  errorMessages: {
+    networkError: 'Erreur de connexion. Vérifiez votre connexion internet.',
+    serverError: 'Erreur serveur. Veuillez réessayer plus tard.',
+    unauthorizedError: 'Session expirée. Veuillez vous reconnecter.',
+    forbiddenError: 'Accès non autorisé.',
+    notFoundError: 'Ressource introuvable.',
+    validationError: 'Données invalides. Vérifiez votre saisie.',
+    timeoutError: "Délai d'attente dépassé. Veuillez réessayer.",
+    genericError: "Une erreur inattendue s'est produite.",
+  },
+
+  // Configuration de maintenance
+  maintenance: {
+    enabled: false,
+    message: 'Maintenance en cours. Veuillez réessayer plus tard.',
+    estimatedTime: '',
+    contactInfo: 'dev-support@assolution.local',
   },
 };

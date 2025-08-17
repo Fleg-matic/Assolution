@@ -1,35 +1,171 @@
-version: '3.8'
-
 services:
+  # PostgreSQL Database - Development
   postgres:
-    image: postgres:15
+    image: postgres:17
+    container_name: assolution-postgres-dev
+    restart: always
     environment:
-      POSTGRES_DB: inscriptions_db
-      POSTGRES_USER: inscriptions_user
-      POSTGRES_PASSWORD: inscriptions_pass
-    ports:
-      - "5432:5432"
+      POSTGRES_DB: ${DB_NAME:-assolution_dev}
+      POSTGRES_USER: ${DB_USER:-assolution_user}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=C"
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - postgres_dev_data:/var/lib/postgresql/data
+      - ./init-scripts:/docker-entrypoint-initdb.d:ro
+      - ./backups:/backups
+    ports:
+      - "5433:5432"  # Port différent de prod
+    networks:
+      - assolution-dev-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-assolution_user} -d ${DB_NAME:-assolution_dev}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    deploy:
+      resources:
+        limits:
+          memory: 512M  # Moins que prod
+          cpus: '0.3'
 
+  # Spring Boot Backend - Development
   backend:
-    build: ./backend
+    build:
+      context: .  # ✅ CORRIGÉ: Contexte à la racine
+      dockerfile: ./inscriptions/inscriptions-backend/Dockerfile
+    container_name: assolution-backend-dev
+    restart: always
+    environment:
+      SPRING_PROFILES_ACTIVE: dev
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: ${DB_NAME:-assolution_dev}
+      DB_USER: ${DB_USER:-assolution_user}
+      DB_PASSWORD: ${DB_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET}
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY}
+      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET}
+      EMAIL_HOST: ${EMAIL_HOST}
+      EMAIL_USER: ${EMAIL_USER}
+      EMAIL_PASSWORD: ${EMAIL_PASSWORD}
+      JAVA_OPTS: "-Xmx256m -Xms128m -XX:+UseG1GC"  # Moins que prod
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${DB_NAME:-assolution_dev}
+      SPRING_DATASOURCE_USERNAME: ${DB_USER:-assolution_user}
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - assolution-dev-network
     ports:
       - "8080:8080"
-    environment:
-      - SPRING_PROFILES_ACTIVE=dev
-      - DB_HOST=postgres
-      - DB_USERNAME=inscriptions_user
-      - DB_PASSWORD=inscriptions_pass
-    depends_on:
-      - postgres
+    volumes:
+      - ./logs:/app/logs
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8080/actuator/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    deploy:
+      resources:
+        limits:
+          memory: 512M  # Moins que prod
+          cpus: '0.8'
 
-  frontend:
-    build: ./frontend
+  # Frontend Builder - Development
+  frontend-builder:
+    build:
+      context: .  # ✅ CORRIGÉ: Contexte à la racine du mono-repo
+      dockerfile: ./inscriptions/inscriptions-frontend/Dockerfile
+    container_name: assolution-frontend-builder-dev
+    restart: "no"
+    volumes:
+      - frontend_static_files:/tmp/dist
+    command: >
+      sh -c "
+        echo '🎨 Copying dev build files to shared volume...' &&
+        cp -r /app/dist/* /tmp/dist/ &&
+        echo '✅ Dev files copied to volume successfully!' &&
+        ls -la /tmp/dist/ &&
+        echo '📊 Total files: $(ls -1 /tmp/dist | wc -l)' &&
+        echo '🎯 Frontend dev build completed'
+      "
+    environment:
+      # Variables pour développement
+      - FRONTEND_API_URL=${FRONTEND_API_URL:-http://localhost:8080}
+      - FRONTEND_BASE_URL=${FRONTEND_BASE_URL:-http://localhost:4200}
+      - BACKEND_URL=${BACKEND_URL:-http://localhost:8080}
+      - STRIPE_PUBLISHABLE_KEY=${STRIPE_PUBLISHABLE_KEY:-pk_test_placeholder}
+      - ENABLE_ANALYTICS=${ENABLE_ANALYTICS:-false}
+      - ENABLE_HTTPS_REDIRECT=${ENABLE_HTTPS_REDIRECT:-false}
+      - SUPPORT_EMAIL=${SUPPORT_EMAIL:-dev-support@assolution.local}
+      - SALES_EMAIL=${SALES_EMAIL:-dev-sales@assolution.local}
+      - SUPPORT_PHONE=${SUPPORT_PHONE:-+33 1 23 45 67 89}
+      - COOKIE_DOMAIN=${COOKIE_DOMAIN:-localhost}
+      - COOKIE_SECURE=${COOKIE_SECURE:-false}
+      - GOOGLE_ANALYTICS_ID=${GOOGLE_ANALYTICS_ID:-}
+      - NODE_ENV=development
+    networks:
+      - assolution-dev-network
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: '0.5'
+
+  # Nginx Reverse Proxy - Development
+  nginx:
+    image: nginx:1.25-alpine
+    container_name: assolution-nginx-dev
+    restart: always
     ports:
-      - "4200:80"
+      - "80:80"
+    networks:
+      - assolution-dev-network
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      - ./logs/nginx:/var/log/nginx
+      - frontend_static_files:/usr/share/nginx/html:ro
     depends_on:
-      - backend
+      frontend-builder:
+        condition: service_completed_successfully
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/nginx-health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    deploy:
+      resources:
+        limits:
+          memory: 64M  # Moins que prod
+          cpus: '0.1'
+
+networks:
+  assolution-dev-network:
+    driver: bridge
+    name: assolution-dev-network
 
 volumes:
-  postgres_data:
+  postgres_dev_data:
+    name: assolution-postgres-dev-data
+  frontend_static_files:
+    name: assolution-frontend-static-dev

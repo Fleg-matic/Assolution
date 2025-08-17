@@ -1,39 +1,80 @@
-# Compiled class file
-*.class
+# ============================================
+# ASSOLUTION - Configuration sécurisée
+# ============================================
 
-# Log file
-*.log
+# ============================================
+# 🔒 SECRETS ET CONFIGURATIONS SENSIBLES
+# ============================================
 
-# BlueJ files
-*.ctxt
+# Variables d'environnement avec vraies valeurs
+.env
+.env.local
+.env.prod
+.env.production
+*.env
 
-# Mobile Tools for Java (J2ME)
-.mtj.tmp/
+# Properties Spring Boot avec mots de passe
+application-dev.properties
+application-prod.properties
+application-*.properties
+!application.properties
 
-# Package Files #
-*.jar
-*.war
-*.nar
-*.ear
-*.zip
-*.tar.gz
-*.rar
+# Cypress avec vraies données de test
+cypress.config.js
 
-# virtual machine crash logs
-hs_err_pid*
+# Scripts SQL avec mots de passe
+init-scripts/*.sql
+
+# Angular environments production avec URLs réelles
+**/environments/environment.prod.ts
+
+# Certificats et clés
+secrets/
+keys/
+certificates/
+ssl/
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+
+# ⭐ GARDER LES TEMPLATES ET OUTILS
+!*.template
+!*.example
+!config-templates/
+!scripts/
+
+# ============================================
+# 🏗️ BUILD ET DEPENDENCIES
+# ============================================
 
 # Maven
 target/
 !.mvn/wrapper/maven-wrapper.jar
 !**/src/main/**/target/
 !**/src/test/**/target/
+.mvn/timing.properties
 
-# Gradle
-.gradle/
-build/
-!gradle/wrapper/gradle-wrapper.jar
-!**/src/main/**/build/
-!**/src/test/**/build/
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.npm
+.yarn-integrity
+
+# Angular
+dist/
+tmp/
+out-tsc/
+bazel-out/
+.angular/
+
+# ============================================
+# 🔧 IDE ET OUTILS
+# ============================================
 
 # IntelliJ IDEA
 .idea/
@@ -41,50 +82,137 @@ build/
 *.iml
 *.ipr
 
+# Visual Studio Code
+.vscode/
+*.code-workspace
+
 # Eclipse
+.metadata
+.settings/
 .project
 .classpath
-.c9/
-*.launch
-.settings/
-.metadata
 .factorypath
 
-# VSCode
-.vscode/
+# ============================================
+# 📊 TESTS ET COUVERTURE
+# ============================================
 
-# Node.js
-node_modules/
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-lerna-debug.log*
+# Coverage
+coverage/
+*.lcov
+.nyc_output
 
-# Angular
-dist/
-tmp/
-out-tsc/
-bazel-out/
+# Tests
+/test-results/
+/playwright-report/
+/playwright/.cache/
 
-# Ionic
-www/
-platforms/
-plugins/
+# Cypress
+cypress/videos/
+cypress/screenshots/
+cypress/downloads/
 
-# Environment variables
-.env
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
+# ============================================
+# 🐳 DOCKER ET VOLUMES
+# ============================================
 
-# Database
+# Volumes Docker persistants
+postgres_data/
+postgres_prod_data/
+
+# Images Docker locales
+*.tar
+
+# ============================================
+# 📝 LOGS ET MONITORING
+# ============================================
+
+# Logs applicatifs
+logs/
+*.log
+*.log.*
+*.out
+app.log*
+application.log*
+spring.log*
+error.log*
+access.log*
+
+# Monitoring
+metrics/
+prometheus/
+
+# ============================================
+# 💾 DONNÉES ET BACKUPS
+# ============================================
+
+# Backups de base de données
+backups/*.sql
+*.dump
+
+# Uploads utilisateurs
+uploads/
+upload/
+
+# Base de données H2
 *.db
-*.sqlite
+*.trace.db
 
-# OS
-.DS_Store
+# ============================================
+# 🖥️ SYSTÈME ET OS
+# ============================================
+
+# Windows
 Thumbs.db
+*.stackdump
+[Dd]esktop.ini
+$RECYCLE.BIN/
 
-# Docker
-.dockerignore
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon
+._*
+
+# Linux
+*~
+.directory
+.Trash-*
+
+# ============================================
+# 🗂️ FICHIERS TEMPORAIRES
+# ============================================
+
+# Cache
+.cache/
+*.cache
+tmp/
+temp/
+*.tmp
+*.temp
+
+# Fichiers de backup
+*.bak
+*.backup
+*.swp
+*.swo
+
+# Archives
+*.7z
+*.dmg
+*.gz
+*.iso
+*.rar
+*.zip
+
+# ============================================
+# 📋 FICHIERS DE TRAVAIL PERSONNEL
+# ============================================
+
+# Notes personnelles
+TODO.md
+NOTES.md
+scratch.*
+local.properties
+personal.properties
