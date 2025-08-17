@@ -36,7 +36,14 @@ jobs:
               run: npm run test:ci
 
             - name: Build application
-              run: npm run build:prod
+              run: |
+                  if [ "${{ github.ref }}" = "refs/heads/develop" ]; then
+                    echo "Building for development..."
+                    npm run build:dev
+                  else
+                    echo "Building for production..."
+                    npm run build:prod
+                  fi
 
             - name: Upload build artifacts
               uses: actions/upload-artifact@v4
