@@ -449,6 +449,8 @@ jobs:
 
                   # Créer le dossier de production s'il n'existe pas
                   mkdir -p /home/dbm/assolution-prod
+                  sudo chown -R dbm:dbm /home/dbm/assolution-prod
+                  sudo chmod -R 755 /home/dbm/assolution-prod
 
                   # Copier les fichiers du workspace vers le dossier de production
                   echo "📁 Copying files to production directory..."
