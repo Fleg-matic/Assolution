@@ -18,8 +18,11 @@ RUN ls -la package*.json
 # Installation des dépendances
 RUN npm ci --no-audit --no-fund
 
-# ✅ Copier le template d'environnement dev si disponible
-COPY config-templates/environment.ts.template /tmp/environment.ts.template 2>/dev/null || echo "No dev template found"
+# Copier le template d'environnement dev si disponible
+RUN if [ -f config-templates/environment.ts.template ]; 
+    then \ cp config-templates/environment.ts template /tmp/environment.ts.template; \
+    else \ echo "No dev template found"; \
+    fi
 
 # Copier le code source
 COPY inscriptions/inscriptions-frontend/ .
