@@ -92,6 +92,27 @@ jobs:
 
                   echo "✅ Dev build structure analysis completed"
 
+            - name: 🔍 Debug Environment in Build
+              working-directory: ./inscriptions/inscriptions-frontend
+              run: |
+                  echo "📁 Checking built environment..."
+                  echo "🔍 Contents of src/environments/:"
+                  ls -la src/environments/
+
+                  echo "📝 Content of environment.ts:"
+                  cat src/environments/environment.ts | head -20
+
+                  echo "🔍 Searching for showEnvironmentBanner in built files:"
+                  if [ -f "dist/inscriptions-frontend/browser/main.js" ]; then
+                    echo "✅ Found main.js in browser/"
+                    grep -o "showEnvironmentBanner" dist/inscriptions-frontend/browser/main.js || echo "❌ showEnvironmentBanner not found in main.js"
+                  elif [ -f "dist/inscriptions-frontend/main.js" ]; then
+                    echo "✅ Found main.js in root"
+                    grep -o "showEnvironmentBanner" dist/inscriptions-frontend/main.js || echo "❌ showEnvironmentBanner not found in main.js"
+                  else
+                    echo "❌ No main.js found"
+                  fi
+
     deploy-dev:
         name: 🚀 Deploy to Development
         runs-on: self-hosted
