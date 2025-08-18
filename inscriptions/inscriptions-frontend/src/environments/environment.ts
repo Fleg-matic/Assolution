@@ -6,7 +6,10 @@
 export const environment = {
   production: false,
   development: true,
-  showEnvironmentBanner: true, // ✅ Toujours visible en local
+  showEnvironmentBanner: true,
+
+  // ✅ Force cache busting en dev
+  buildTimestamp: Date.now(),
 
   // Configuration API locale
   apiUrl: 'http://localhost:8080',

@@ -5,7 +5,7 @@
 export const environment = {
   production: false,
   development: true,
-  showEnvironmentBanner: true, // 🎯 FORCÉ À TRUE POUR LE DEV
+  showEnvironmentBanner: true,
 
   // Configuration API
   apiUrl: '${FRONTEND_API_URL}', // Utilise le secret ou fallback
