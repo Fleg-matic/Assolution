@@ -128,11 +128,15 @@ jobs:
             - name: 📝 Generate .env from template
               run: |
                   echo "📝 Generating .env for development..."
-                  envsubst < .env.template > .env
+                  envsubst < ./config-templates/.env.template > .env
                   echo "✅ .env created for development"
               env:
                   DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+                  EMAIL_USER: ${{ secrets.EMAIL_USER }}
+                  EMAIL_PASSWORD: ${{ secrets.EMAIL_PASSWORD }}
+                  EMAIL_HOST: ${{ secrets.EMAIL_HOST }}
                   JWT_SECRET: ${{ secrets.JWT_SECRET }}
+                  STRIPE_WEBHOOK_SECRET: ${{ secrets.STRIPE_WEBHOOK_SECRET }}
                   STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
 
             - name: 🔍 System Info
