@@ -37,8 +37,8 @@ import { Title } from '@angular/platform-browser';
     MatListModule,
     MatMenuModule,
     MatProgressBarModule,
-    NgxSpinnerModule
-],
+    NgxSpinnerModule,
+  ],
   templateUrl: './app.component.html',
   styleUrl: './app.component.scss',
 })
