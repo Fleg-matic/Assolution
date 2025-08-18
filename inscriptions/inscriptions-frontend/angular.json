@@ -133,9 +133,7 @@
             "scripts": [],
             "codeCoverage": true,
             "browsers": "ChromeHeadless",
-            "watch": false,
-            "verbose": false,
-            "progress": false
+            "watch": false
           }
         },
         "lint": {
