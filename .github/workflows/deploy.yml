@@ -125,6 +125,16 @@ jobs:
               with:
                   fetch-depth: 0
 
+            - name: 📝 Generate .env from template
+              run: |
+                  echo "📝 Generating .env for development..."
+                  envsubst < .env.template > .env
+                  echo "✅ .env created for development"
+              env:
+                  DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+                  JWT_SECRET: ${{ secrets.JWT_SECRET }}
+                  STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
+
             - name: 🔍 System Info
               run: |
                   echo "🖥️ Running on development VM:"

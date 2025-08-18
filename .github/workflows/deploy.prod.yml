@@ -413,6 +413,15 @@ jobs:
                     echo "ℹ️ No existing PostgreSQL container found"
                   fi
 
+            - name: 📝 Generate .env.prod from template
+              run: |
+                  echo "📝 Generating .env.prod for production..."
+                  envsubst < .env.prod.template > .env.prod
+                  echo "✅ .env.prod created for production"
+              env:
+                  DB_PASSWORD_PROD: ${{ secrets.DB_PASSWORD_PROD }}
+                  JWT_SECRET_PROD: ${{ secrets.JWT_SECRET_PROD }}
+
             - name: 📂 Deploy to Local Production
               env:
                   # ✅ EXPLICITEMENT TOUTES les variables d'environnement pour la production

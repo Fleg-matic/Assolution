@@ -217,3 +217,8 @@ scratch.*
 local.properties
 .env
 .env.prod
+
+
+# Garder les templates (publics)
+!.env.template
+!.env.prod.template
