@@ -30,7 +30,9 @@
             ],
             "styles": ["src/styles.scss"],
             "scripts": [],
-            "allowedCommonJsDependencies": ["lodash", "moment", "chart.js", "file-saver"]
+            "allowedCommonJsDependencies": ["lodash", "moment", "chart.js", "file-saver"],
+            "verbose": false,
+            "progress": false
           },
           "configurations": {
             "production": {
@@ -51,6 +53,8 @@
               "extractLicenses": true,
               "sourceMap": false,
               "namedChunks": false,
+              "verbose": false,
+              "progress": false,
               "fileReplacements": [
                 {
                   "replace": "src/environments/environment.ts",
@@ -63,7 +67,19 @@
               "extractLicenses": false,
               "sourceMap": true,
               "namedChunks": true,
+              "watch": false,
+              "verbose": false,
+              "progress": false,
+              "fileReplacements": []
+            },
+            "local": {
+              "optimization": false,
+              "extractLicenses": false,
+              "sourceMap": true,
+              "namedChunks": true,
               "watch": true,
+              "verbose": false,
+              "progress": true,
               "fileReplacements": [
                 {
                   "replace": "src/environments/environment.ts",
@@ -82,9 +98,12 @@
             },
             "development": {
               "buildTarget": "inscriptions-frontend:build:development"
+            },
+            "local": {
+              "buildTarget": "inscriptions-frontend:build:local"
             }
           },
-          "defaultConfiguration": "development",
+          "defaultConfiguration": "local",
           "options": {
             "port": 4200,
             "host": "0.0.0.0",
@@ -114,7 +133,9 @@
             "scripts": [],
             "codeCoverage": true,
             "browsers": "ChromeHeadless",
-            "watch": false
+            "watch": false,
+            "verbose": false,
+            "progress": false
           }
         },
         "lint": {

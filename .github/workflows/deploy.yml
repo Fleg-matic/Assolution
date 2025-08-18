@@ -124,22 +124,24 @@ jobs:
             - name: 🗂️ Build Frontend
               working-directory: ./inscriptions/inscriptions-frontend
               run: |
-                  npm run build:dev
+                  echo "🗂️ Building development app..."
 
-                  echo "🔍 DEBUG: Checking dev build output structure..."
-                  echo "📁 Contents of dist/:"
-                  ls -la dist/ || echo "No dist directory"
+                  # Rediriger les sorties verboses vers des fichiers
+                  npm run build:dev > build.log 2>&1 || {
+                    echo "❌ Build failed! Check build.log for details"
+                    echo "📋 Last 20 lines of build log:"
+                    tail -20 build.log
+                    exit 1
+                  }
 
-                  echo "📁 Contents of dist/inscriptions-frontend/:"
-                  ls -la dist/inscriptions-frontend/ || echo "No inscriptions-frontend directory"
+                  echo "✅ Build completed successfully"
 
-                  echo "📁 Looking for browser subdirectory:"
-                  ls -la dist/inscriptions-frontend/browser/ || echo "No browser subdirectory"
+                  # Diagnostic de structure (sans contenu sensible)
+                  echo "📁 Build output structure:"
+                  find dist/ -type f -name "*.html" -o -name "*.js" -o -name "*.css" | head -10
 
-                  echo "🔍 Searching for index.html:"
-                  find dist/ -name "index.html" -type f || echo "No index.html found"
-
-                  echo "✅ Dev build structure analysis completed"
+                  echo "📊 Build size summary:"
+                  du -sh dist/ 2>/dev/null || echo "No dist directory"
 
             - name: 🔍 Debug Environment in Build
               working-directory: ./inscriptions/inscriptions-frontend
