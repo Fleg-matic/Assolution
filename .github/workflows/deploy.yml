@@ -117,6 +117,33 @@ jobs:
 
                   echo "✅ Environment.ts ready for build"
 
+            - name: 🔍 Debug Environment Generation
+              working-directory: ./inscriptions/inscriptions-frontend
+              run: |
+                  echo "🔍 Vérification du fichier environment.ts généré..."
+
+                  if [ -f "src/environments/environment.ts" ]; then
+                    echo "✅ Fichier environment.ts existe"
+                    echo "📏 Taille: $(wc -c < src/environments/environment.ts) octets"
+                    echo "📄 Contenu complet du fichier:"
+                    echo "================================================"
+                    cat src/environments/environment.ts
+                    echo "================================================"
+                    
+                    echo ""
+                    echo "🔍 Recherche de showEnvironmentBanner:"
+                    grep -n "showEnvironmentBanner" src/environments/environment.ts || echo "❌ showEnvironmentBanner non trouvé!"
+                    
+                    echo ""
+                    echo "🔍 Valeur de showEnvironmentBanner:"
+                    grep -A1 -B1 "showEnvironmentBanner" src/environments/environment.ts || echo "❌ Contexte non trouvé!"
+                    
+                  else
+                    echo "❌ Fichier environment.ts n'existe pas!"
+                    echo "📁 Contenu du dossier environments:"
+                    ls -la src/environments/ || echo "Dossier environments n'existe pas"
+                  fi
+
             - name: 🔧 Run Frontend Tests
               working-directory: ./inscriptions/inscriptions-frontend
               run: npm run test:ci || echo "Tests completed"
