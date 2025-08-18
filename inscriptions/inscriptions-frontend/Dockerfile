@@ -60,6 +60,8 @@ RUN echo "🔧 Setting up development environment..." && \
 # Build Angular pour dev (production build mais avec config dev)
 RUN echo "🎨 Building Angular application for development..." && \
     npm run build:dev && \
+    echo "🔍 Checking if showEnvironmentBanner exists in build:" && \
+    grep -r "showEnvironmentBanner" dist/ || echo "❌ showEnvironmentBanner not found in build" && \
     echo "✅ Angular dev build completed!"
 
 # Vérification et copie des fichiers
