@@ -26,6 +26,7 @@ cypress.config.js
 init-scripts/*.sql
 
 # Angular environments production avec URLs réelles
+**/environments/environment.ts
 **/environments/environment.prod.ts
 
 # Certificats et clés
