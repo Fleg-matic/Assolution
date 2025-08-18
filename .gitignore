@@ -215,4 +215,5 @@ TODO.md
 NOTES.md
 scratch.*
 local.properties
-personal.properties
+.env
+.env.prod
